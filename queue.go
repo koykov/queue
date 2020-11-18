@@ -5,3 +5,9 @@ type Queuer interface {
 }
 
 type Stream chan interface{}
+
+type Worker interface {
+	Observe(stream Stream)
+	Sleep()
+	Wakeup()
+}
