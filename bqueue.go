@@ -8,8 +8,10 @@ const (
 )
 
 type BalancedQueue struct {
+	queue
+
 	once   sync.Once
-	stream Stream
+	stream stream
 	w      []*worker
 	wc     uint32
 
@@ -31,7 +33,7 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 }
 
 func (q *BalancedQueue) init() {
-	q.stream = make(Stream, q.Size)
+	q.stream = make(stream, q.Size)
 
 	if q.WorkersMin <= 0 {
 		q.WorkersMin = 1
@@ -49,18 +51,25 @@ func (q *BalancedQueue) init() {
 	if q.WakeupFactor < q.SleepFactor {
 		q.WakeupFactor = q.SleepFactor
 	}
+
+	q.status = qstatusActive
 }
 
 func (q *BalancedQueue) rebalance() {
-	if q.stream == nil {
+	if q.status == qstatusNil {
 		q.once.Do(q.init)
 	}
 
 	rate := q.lcRate()
-	if rate >= q.WakeupFactor {
+	switch {
+	case rate >= q.WakeupFactor:
 		// todo make new worker or wakeup sleeping worker and use it Observe() method in new goroutine.
-	} else if rate <= q.SleepFactor {
+	case rate <= q.SleepFactor:
 		// todo sleep one of active workers.
+	case rate == 1:
+		q.status = qstatusThrottle
+	default:
+		q.status = qstatusActive
 	}
 }
 
