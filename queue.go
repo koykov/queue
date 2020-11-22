@@ -8,8 +8,8 @@ const (
 	qstatusActive          = 1
 	qstatusThrottle        = 2
 
-	wstatusActive status = 0
-	wstatusIdle          = 1
+	wstatusIdle   status = 0
+	wstatusActive        = 1
 	wstatusSleep         = 2
 
 	signalInit   signal = 0
@@ -37,5 +37,22 @@ type worker struct {
 }
 
 func (w *worker) observe(stream stream, ctl ctl) {
-	//
+	for {
+		select {
+		case cmd := <-ctl:
+			switch cmd {
+			case signalStop:
+				w.status = wstatusIdle
+				return
+			case signalSleep:
+				w.status = wstatusSleep
+			case signalInit, signalResume:
+				w.status = wstatusActive
+			}
+		default:
+			if w.status == wstatusActive {
+				w.proc(<-stream)
+			}
+		}
+	}
 }

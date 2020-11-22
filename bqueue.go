@@ -13,6 +13,7 @@ type BalancedQueue struct {
 	once   sync.Once
 	stream stream
 	w      []*worker
+	c      []ctl
 	wc     uint32
 
 	Size uint64
@@ -51,6 +52,21 @@ func (q *BalancedQueue) init() {
 	if q.WakeupFactor < q.SleepFactor {
 		q.WakeupFactor = q.SleepFactor
 	}
+
+	q.w = make([]*worker, q.WorkersMax)
+	var i uint32
+	for i = 0; i < q.WorkersMax; i++ {
+		q.w[i] = &worker{
+			status: wstatusIdle,
+			proc:   q.proc,
+		}
+		q.c[i] = make(ctl)
+	}
+	for i = 0; i < q.WorkersMin; i++ {
+		go q.w[i].observe(q.stream, q.c[i])
+		q.c[i] <- signalInit
+	}
+	q.wc = q.WorkersMin
 
 	q.status = qstatusActive
 }
