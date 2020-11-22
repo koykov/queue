@@ -107,14 +107,21 @@ func (q *BalancedQueue) rebalance() {
 	rate := q.lcRate()
 	switch {
 	case rate >= q.WakeupFactor:
-		// todo make new worker or wakeup sleeping worker and use it Observe() method in new goroutine.
+		i := q.workerUp
+		q.workers[i].observe(q.stream, q.ctl[i])
+		q.ctl[i] <- signalResume
+		q.workerUp++
 	case rate <= q.SleepFactor:
-		// todo sleep one of active workers.
+		q.ctl[q.workerUp] <- signalSleep
+		q.workerUp--
 	case rate == 1:
 		q.status = qstatusThrottle
 	default:
 		q.status = qstatusActive
 	}
+
+	q.spinlock = 0
+
 	q.mux.Unlock()
 }
 
