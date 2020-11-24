@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -15,19 +14,10 @@ const (
 )
 
 type BalancedQueue struct {
-	queue
-	stream stream
-	Size   uint64
+	Queue
 
-	once sync.Once
-
-	mux      sync.Mutex
-	workers  []*worker
-	ctl      []ctl
 	workerUp uint32
 	spinlock uint32
-
-	proc Proc
 
 	WakeupFactor float32
 	SleepFactor  float32
@@ -54,7 +44,7 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 func (q *BalancedQueue) init() {
 	q.stream = make(stream, q.Size)
 
-	if q.WorkersMin <= 0 {
+	if q.WorkersMin == 0 {
 		q.WorkersMin = 1
 	}
 	if q.WorkersMax < q.WorkersMin {
