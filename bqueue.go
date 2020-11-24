@@ -28,19 +28,6 @@ type BalancedQueue struct {
 	Heartbeat time.Duration
 }
 
-func (q *BalancedQueue) Put(x interface{}) bool {
-	if q.status == qstatusNil {
-		q.once.Do(q.init)
-	}
-
-	if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
-		q.rebalance()
-	}
-	q.stream <- x
-	atomic.AddUint32(&q.spinlock, -1)
-	return true
-}
-
 func (q *BalancedQueue) init() {
 	q.stream = make(stream, q.Size)
 
@@ -90,6 +77,19 @@ func (q *BalancedQueue) init() {
 	}()
 
 	q.status = qstatusActive
+}
+
+func (q *BalancedQueue) Put(x interface{}) bool {
+	if q.status == qstatusNil {
+		q.once.Do(q.init)
+	}
+
+	if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
+		q.rebalance()
+	}
+	q.stream <- x
+	atomic.AddUint32(&q.spinlock, -1)
+	return true
 }
 
 func (q *BalancedQueue) rebalance() {
