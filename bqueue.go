@@ -94,6 +94,10 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 
 func (q *BalancedQueue) rebalance() {
 	q.mux.Lock()
+
+	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
+	q.spinlock = 0
+
 	rate := q.lcRate()
 	switch {
 	case rate >= q.WakeupFactor:
@@ -109,9 +113,6 @@ func (q *BalancedQueue) rebalance() {
 	default:
 		q.status = qstatusActive
 	}
-
-	q.spinlock = 0
-
 	q.mux.Unlock()
 }
 
