@@ -1,8 +1,9 @@
 package queue
 
 type MetricsWriter interface {
-	WorkerSleep(uint32 int)
-	WorkerWakeup(uint32 int)
+	WorkerSleep(idx uint32)
+	WorkerWakeup(idx uint32)
+	WorkerStop(idx uint32)
 	QueuePut()
 	QueuePull()
 }

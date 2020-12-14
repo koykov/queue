@@ -12,6 +12,10 @@ func (m *Log) WorkerWakeup(idx uint32) {
 	log.Printf("worker %d caught sleep signal\n", idx)
 }
 
+func (m *Log) WorkerStop(idx uint32) {
+	log.Printf("worker %d caught stop signal\n", idx)
+}
+
 func (m *Log) QueuePut() {
 	log.Println("new item come to the queue")
 }
