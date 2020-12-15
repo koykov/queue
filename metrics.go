@@ -6,4 +6,5 @@ type MetricsWriter interface {
 	WorkerStop(idx uint32)
 	QueuePut()
 	QueuePull()
+	QueueLeak()
 }

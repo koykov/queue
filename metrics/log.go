@@ -23,3 +23,7 @@ func (m *Log) QueuePut() {
 func (m *Log) QueuePull() {
 	log.Println("item leave the queue")
 }
+
+func (m *Log) QueueLeak() {
+	log.Println("queue leak")
+}

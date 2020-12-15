@@ -50,3 +50,7 @@ func (m *Prometheus) QueuePut() {
 func (m *Prometheus) QueuePull() {
 	//
 }
+
+func (m *Prometheus) QueueLeak() {
+	//
+}
