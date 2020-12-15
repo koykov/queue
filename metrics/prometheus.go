@@ -50,30 +50,30 @@ func NewPrometheusMetrics(queueKey string, workersMax uint32) *Prometheus {
 }
 
 func (m *Prometheus) WorkerSleep(_ uint32) {
-	m.workerSleep.WithLabelValues(m.queue).Add(1)
+	m.workerSleep.WithLabelValues(m.queue).Inc()
 	m.workerActive.WithLabelValues(m.queue).Add(-1)
 }
 
 func (m *Prometheus) WorkerWakeup(_ uint32) {
-	m.workerActive.WithLabelValues(m.queue).Add(1)
+	m.workerActive.WithLabelValues(m.queue).Inc()
 	m.workerSleep.WithLabelValues(m.queue).Add(-1)
 }
 
 func (m *Prometheus) WorkerStop(_ uint32) {
-	m.workerIdle.WithLabelValues(m.queue).Add(1)
+	m.workerIdle.WithLabelValues(m.queue).Inc()
 	m.workerActive.WithLabelValues(m.queue).Add(-1)
 }
 
 func (m *Prometheus) QueuePut() {
-	m.queueIn.WithLabelValues(m.queue).Add(1)
+	m.queueIn.WithLabelValues(m.queue).Inc()
 	m.queueSize.WithLabelValues(m.queue).Inc()
 }
 
 func (m *Prometheus) QueuePull() {
-	m.queueOut.WithLabelValues(m.queue).Add(1)
+	m.queueOut.WithLabelValues(m.queue).Inc()
 	m.queueSize.WithLabelValues(m.queue).Dec()
 }
 
 func (m *Prometheus) QueueLeak() {
-	m.queueLeak.WithLabelValues(m.queue).Add(1)
+	m.queueLeak.WithLabelValues(m.queue).Inc()
 }
