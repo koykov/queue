@@ -5,7 +5,10 @@ import "github.com/prometheus/client_golang/prometheus"
 type Prometheus struct {
 	queue string
 
-	workerIdle, workerActive, workerSleep *prometheus.CounterVec
+	queueSize *prometheus.GaugeVec
+
+	workerIdle, workerActive, workerSleep,
+	queueIn, queueOut, queueLeak *prometheus.CounterVec
 }
 
 func NewPrometheusMetrics(queueKey string, workersMax uint32) *Prometheus {
@@ -21,6 +24,24 @@ func NewPrometheusMetrics(queueKey string, workersMax uint32) *Prometheus {
 	m.workerSleep = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "queue_workers_sleep",
 		Help: "Indicates how many workers sleep.",
+	}, []string{"queue"})
+
+	m.queueSize = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "queue_size",
+		Help: "Actual queue size.",
+	}, []string{"queue"})
+
+	m.queueIn = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "queue_in",
+		Help: "How many items comes to the queue.",
+	}, []string{"queue"})
+	m.queueOut = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "queue_out",
+		Help: "How many items leaves queue.",
+	}, []string{"queue"})
+	m.queueLeak = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "queue_leak",
+		Help: "How many items dropped on the floor due to queue is full.",
 	}, []string{"queue"})
 
 	prometheus.MustRegister(m.workerIdle, m.workerActive, m.workerSleep)
@@ -44,13 +65,15 @@ func (m *Prometheus) WorkerStop(_ uint32) {
 }
 
 func (m *Prometheus) QueuePut() {
-	//
+	m.queueIn.WithLabelValues(m.queue).Add(1)
+	m.queueSize.WithLabelValues(m.queue).Inc()
 }
 
 func (m *Prometheus) QueuePull() {
-	//
+	m.queueOut.WithLabelValues(m.queue).Add(1)
+	m.queueSize.WithLabelValues(m.queue).Dec()
 }
 
 func (m *Prometheus) QueueLeak() {
-	//
+	m.queueLeak.WithLabelValues(m.queue).Add(1)
 }
