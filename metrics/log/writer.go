@@ -2,28 +2,35 @@ package log
 
 import "log"
 
-type Log struct{}
+type Log struct {
+	queue string
+}
+
+func NewMetricsWriter(queueKey string) *Log {
+	m := &Log{queue: queueKey}
+	return m
+}
 
 func (m *Log) WorkerSleep(idx uint32) {
-	log.Printf("worker %d caught sleep signal\n", idx)
+	log.Printf("queue %s: worker %d caught sleep signal\n", m.queue, idx)
 }
 
 func (m *Log) WorkerWakeup(idx uint32) {
-	log.Printf("worker %d caught sleep signal\n", idx)
+	log.Printf("queue %s: worker %d caught sleep signal\n", m.queue, idx)
 }
 
 func (m *Log) WorkerStop(idx uint32) {
-	log.Printf("worker %d caught stop signal\n", idx)
+	log.Printf("queue %s: worker %d caught stop signal\n", m.queue, idx)
 }
 
 func (m *Log) QueuePut() {
-	log.Println("new item come to the queue")
+	log.Printf("queue %s: new item come to the queue\n", m.queue)
 }
 
 func (m *Log) QueuePull() {
-	log.Println("item leave the queue")
+	log.Printf("queue %s: item leave the queue\n", m.queue)
 }
 
 func (m *Log) QueueLeak() {
-	log.Println("queue leak")
+	log.Printf("queue %s: queue leak\n", m.queue)
 }

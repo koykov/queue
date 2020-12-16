@@ -43,7 +43,9 @@ type Queue struct {
 
 	once sync.Once
 
+	Key     string
 	Workers uint32
+	Metrics MetricsWriter
 }
 
 func (q *Queue) init() {
