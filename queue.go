@@ -26,6 +26,7 @@ type stream chan interface{}
 
 type Queuer interface {
 	Put(x interface{}) bool
+	String() string
 }
 
 type Proc func(x interface{})
@@ -77,4 +78,8 @@ func (q *Queue) Put(x interface{}) bool {
 
 	q.stream <- x
 	return true
+}
+
+func (q *Queue) String() string {
+	return ""
 }
