@@ -17,7 +17,7 @@ type BalancedQueue struct {
 	Queue
 
 	workerUp uint32
-	spinlock uint32
+	spinlock int64
 
 	WakeupFactor float32
 	SleepFactor  float32
@@ -84,11 +84,11 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 		q.once.Do(q.init)
 	}
 
-	if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
+	if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
 		q.rebalance()
 	}
 	q.stream <- x
-	atomic.AddUint32(&q.spinlock, -1)
+	atomic.AddInt64(&q.spinlock, -1)
 	return true
 }
 
