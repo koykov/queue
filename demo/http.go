@@ -72,7 +72,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			metrics                   = prometheus.NewMetricsWriter(key)
 		)
 
-		if qsize := r.FormValue("qsize"); len(qsize) > 0 {
+		if qsize := r.FormValue("size"); len(qsize) > 0 {
 			uqsize, err := strconv.ParseUint(qsize, 10, 32)
 			if err != nil {
 				log.Println("err", err)
