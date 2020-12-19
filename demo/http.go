@@ -13,21 +13,21 @@ import (
 
 type QueueHTTP struct {
 	mux  sync.RWMutex
-	pool map[string]queue.Queuer
+	pool map[string]demoQueue
 }
 
 func NewQueueHTTP() *QueueHTTP {
 	h := &QueueHTTP{
-		pool: make(map[string]queue.Queuer),
+		pool: make(map[string]demoQueue),
 	}
 	return h
 }
 
-func (h *QueueHTTP) get(key string) queue.Queuer {
+func (h *QueueHTTP) get(key string) *demoQueue {
 	h.mux.RLock()
 	defer h.mux.RUnlock()
 	if q, ok := h.pool[key]; ok {
-		return q
+		return &q
 	}
 	return nil
 }
@@ -36,7 +36,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		key string
 		err error
-		q   queue.Queuer
+		q   *demoQueue
 	)
 
 	if key = r.FormValue("key"); len(key) == 0 {
@@ -66,6 +66,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var (
 			size                      uint64
+			procsMin, procsMax        uint32
 			workersMin, workersMax    uint32
 			wakeupFactor, sleepFactor float32
 			heartbeat                 time.Duration
@@ -80,6 +81,26 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			size = uqsize
+		}
+
+		if pmin := r.FormValue("pmin"); len(pmin) > 0 {
+			upmin, err := strconv.ParseUint(pmin, 10, 32)
+			if err != nil {
+				log.Println("err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			procsMin = uint32(upmin)
+		}
+
+		if pmax := r.FormValue("pmax"); len(pmax) > 0 {
+			upmax, err := strconv.ParseUint(pmax, 10, 32)
+			if err != nil {
+				log.Println("err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			procsMax = uint32(upmax)
 		}
 
 		if wmin := r.FormValue("wmin"); len(wmin) > 0 {
@@ -132,10 +153,11 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			heartbeat = time.Duration(ihb)
 		}
 
+		var qi queue.Queuer
 		typ := r.FormValue("type")
 		switch typ {
 		case "bqueue":
-			q = &queue.BalancedQueue{
+			qi = &queue.BalancedQueue{
 				Queue: queue.Queue{
 					Size:    size,
 					Key:     key,
@@ -148,7 +170,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Heartbeat:    heartbeat,
 			}
 		case "blqueue":
-			q = &queue.BalancedLeakyQueue{
+			qi = &queue.BalancedLeakyQueue{
 				BalancedQueue: queue.BalancedQueue{
 					Queue: queue.Queue{
 						Size:    size,
@@ -166,12 +188,20 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "queue":
 			fallthrough
 		default:
-			q = &queue.Queue{
+			qi = &queue.Queue{
 				Size:    size,
 				Key:     key,
 				Workers: workersMin,
 				Metrics: metrics,
 			}
+		}
+
+		q := demoQueue{
+			queue:        qi,
+			producersMin: procsMin,
+			producersMax: procsMax,
+			producers:    make([]producerProc, procsMax),
+			ctl:          make([]chan uint8, procsMax),
 		}
 
 		h.mux.Lock()
