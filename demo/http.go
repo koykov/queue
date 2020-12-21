@@ -213,7 +213,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			queue:        qi,
 			producersMin: procsMin,
 			producersMax: procsMax,
-			producers:    make([]producerProc, procsMax),
+			producers:    make([]producer, procsMax),
 			ctl:          make([]chan uint8, procsMax),
 		}
 
