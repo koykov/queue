@@ -123,12 +123,16 @@ func (q *BalancedQueue) lcRate() float32 {
 
 func (q *BalancedQueue) String() string {
 	var out = &struct {
-		Key           string `json:"key"`
-		Status        string `json:"status"`
-		Size          uint64 `json:"size"`
-		WorkersIdle   int    `json:"workers_idle"`
-		WorkersActive int    `json:"workers_active"`
-		WorkersSleep  int    `json:"workers_sleep"`
+		Key           string  `json:"key"`
+		Status        string  `json:"status"`
+		Size          uint64  `json:"size"`
+		WorkersMin    int     `json:"workers_min"`
+		WorkersMax    int     `json:"workers_max"`
+		WorkersIdle   int     `json:"workers_idle"`
+		WorkersActive int     `json:"workers_active"`
+		WorkersSleep  int     `json:"workers_sleep"`
+		SleepFactor   float32 `json:"sleep_factor"`
+		WakeupFactor  float32 `json:"wakeup_factor"`
 	}{}
 	out.Key = q.Key
 	out.Size = q.Size
@@ -156,6 +160,11 @@ func (q *BalancedQueue) String() string {
 			}
 		}
 	}
+
+	out.WorkersMin = int(q.WorkersMin)
+	out.WorkersMax = int(q.WorkersMax)
+	out.SleepFactor = q.SleepFactor
+	out.WakeupFactor = q.WakeupFactor
 
 	b, _ := json.Marshal(out)
 
