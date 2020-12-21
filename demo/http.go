@@ -65,12 +65,15 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var (
-			size                      uint64
-			procsMin, procsMax        uint32
-			workersMin, workersMax    uint32
+			size               uint64
+			procsMin, procsMax uint32
+
+			workers, workersMin, workersMax uint32
+
 			wakeupFactor, sleepFactor float32
-			heartbeat                 time.Duration
-			metrics                   = prometheus.NewMetricsWriter(key)
+
+			heartbeat time.Duration
+			metrics   = prometheus.NewMetricsWriter(key)
 		)
 
 		if qsize := r.FormValue("size"); len(qsize) > 0 {
@@ -101,6 +104,16 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			procsMax = uint32(upmax)
+		}
+
+		if work := r.FormValue("work"); len(work) > 0 {
+			uwork, err := strconv.ParseUint(work, 10, 32)
+			if err != nil {
+				log.Println("err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			workers = uint32(uwork)
 		}
 
 		if wmin := r.FormValue("wmin"); len(wmin) > 0 {
@@ -191,7 +204,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			qi = &queue.Queue{
 				Size:    size,
 				Key:     key,
-				Workers: workersMin,
+				Workers: workers,
 				Metrics: metrics,
 			}
 		}
