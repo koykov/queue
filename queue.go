@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"encoding/json"
 	"sync"
 )
 
@@ -81,5 +82,42 @@ func (q *Queue) Put(x interface{}) bool {
 }
 
 func (q *Queue) String() string {
-	return ""
+	var out = &struct {
+		Key           string `json:"key"`
+		Status        string `json:"status"`
+		Size          uint64 `json:"size"`
+		WorkersIdle   int    `json:"workers_idle"`
+		WorkersActive int    `json:"workers_active"`
+		WorkersSleep  int    `json:"workers_sleep"`
+	}{}
+	out.Key = q.Key
+	out.Size = q.Size
+
+	switch q.status {
+	case qstatusNil:
+		out.Status = "inactive"
+	case qstatusActive:
+		out.Status = "active"
+	case qstatusThrottle:
+		out.Status = "throttle"
+	}
+
+	for _, w := range q.workers {
+		if w == nil {
+			out.WorkersIdle++
+		} else {
+			switch w.status {
+			case wstatusIdle:
+				out.WorkersIdle++
+			case wstatusActive:
+				out.WorkersActive++
+			case w.status:
+				out.WorkersSleep++
+			}
+		}
+	}
+
+	b, _ := json.Marshal(out)
+
+	return string(b)
 }
