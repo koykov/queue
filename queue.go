@@ -86,9 +86,7 @@ func (q *Queue) String() string {
 		Key           string `json:"key"`
 		Status        string `json:"status"`
 		Size          uint64 `json:"size"`
-		WorkersIdle   int    `json:"workers_idle"`
 		WorkersActive int    `json:"workers_active"`
-		WorkersSleep  int    `json:"workers_sleep"`
 	}{}
 	out.Key = q.Key
 	out.Size = q.Size
@@ -102,20 +100,7 @@ func (q *Queue) String() string {
 		out.Status = "throttle"
 	}
 
-	for _, w := range q.workers {
-		if w == nil {
-			out.WorkersIdle++
-		} else {
-			switch w.status {
-			case wstatusIdle:
-				out.WorkersIdle++
-			case wstatusActive:
-				out.WorkersActive++
-			case w.status:
-				out.WorkersSleep++
-			}
-		}
-	}
+	out.WorkersActive = int(q.Workers)
 
 	b, _ := json.Marshal(out)
 
