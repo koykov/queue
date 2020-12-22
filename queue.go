@@ -56,6 +56,7 @@ func (q *Queue) init() {
 	if q.Workers == 0 {
 		q.Workers = 1
 	}
+	q.ctl = make([]ctl, q.Workers)
 	q.workers = make([]*worker, q.Workers)
 	var i uint32
 	for i = 0; i < q.Workers; i++ {

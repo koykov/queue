@@ -13,7 +13,15 @@ type demoQueue struct {
 	producersMin,
 	producersMax uint32
 	producers []producer
-	ctl       []chan uint8
+	ctl       []chan signal
+}
+
+func (d *demoQueue) Run() {
+	for i := 0; i < int(d.producersMin); i++ {
+		d.ctl[i] = make(chan signal)
+		go d.producers[i].produce(d.queue, d.ctl[i])
+		d.ctl[i] <- signalInit
+	}
 }
 
 func (d *demoQueue) String() string {

@@ -49,14 +49,15 @@ func (q *BalancedQueue) init() {
 		q.WakeupFactor = q.SleepFactor
 	}
 
+	q.ctl = make([]ctl, q.WorkersMax)
 	q.workers = make([]*worker, q.WorkersMax)
 	var i uint32
 	for i = 0; i < q.WorkersMax; i++ {
+		q.ctl[i] = make(chan signal)
 		q.workers[i] = &worker{
 			status: wstatusIdle,
 			proc:   q.proc,
 		}
-		q.ctl[i] = make(ctl)
 	}
 	for i = 0; i < q.WorkersMin; i++ {
 		go q.workers[i].observe(q.stream, q.ctl[i])

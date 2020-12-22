@@ -10,6 +10,10 @@ type BalancedLeakyQueue struct {
 }
 
 func (q *BalancedLeakyQueue) Put(x interface{}) bool {
+	if q.status == qstatusNil {
+		q.once.Do(q.init)
+	}
+
 	q.rebalance()
 	select {
 	case q.stream <- x:

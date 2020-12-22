@@ -214,12 +214,14 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			producersMin: procsMin,
 			producersMax: procsMax,
 			producers:    make([]producer, procsMax),
-			ctl:          make([]chan uint8, procsMax),
+			ctl:          make([]chan signal, procsMax),
 		}
 
 		h.mux.Lock()
 		h.pool[key] = q
 		h.mux.Unlock()
+
+		q.Run()
 
 		w.WriteHeader(http.StatusOK)
 		if _, err = w.Write([]byte("ok")); err != nil {
