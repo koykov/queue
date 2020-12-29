@@ -17,11 +17,13 @@ func (q *BalancedLeakyQueue) Put(x interface{}) bool {
 	q.rebalance()
 	select {
 	case q.stream <- x:
+		q.Metrics.QueuePut()
 		return true
 	default:
 		if q.Leaker != nil {
 			q.Leaker.Catch(x)
 		}
+		q.Metrics.QueueLeak()
 		return false
 	}
 }

@@ -16,7 +16,7 @@ func (m *Log) WorkerSleep(idx uint32) {
 }
 
 func (m *Log) WorkerWakeup(idx uint32) {
-	log.Printf("queue %s: worker %d caught sleep signal\n", m.queue, idx)
+	log.Printf("queue %s: worker %d caught init/wakeup signal\n", m.queue, idx)
 }
 
 func (m *Log) WorkerStop(idx uint32) {

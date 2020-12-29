@@ -65,8 +65,10 @@ func (q *Queue) init() {
 	var i uint32
 	for i = 0; i < q.Workers; i++ {
 		q.workers[i] = &worker{
-			status: wstatusIdle,
-			proc:   q.proc,
+			idx:     i,
+			status:  wstatusIdle,
+			proc:    q.proc,
+			metrics: q.Metrics,
 		}
 		q.ctl[i] = make(ctl)
 
@@ -83,6 +85,7 @@ func (q *Queue) Put(x interface{}) bool {
 	}
 
 	q.stream <- x
+	q.Metrics.QueuePut()
 	return true
 }
 

@@ -59,8 +59,10 @@ func (q *BalancedQueue) init() {
 	for i = 0; i < q.WorkersMax; i++ {
 		q.ctl[i] = make(chan signal)
 		q.workers[i] = &worker{
-			status: wstatusIdle,
-			proc:   q.proc,
+			idx:     i,
+			status:  wstatusIdle,
+			proc:    q.proc,
+			metrics: q.Metrics,
 		}
 	}
 	for i = 0; i < q.WorkersMin; i++ {
@@ -94,6 +96,7 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 		q.rebalance()
 	}
 	q.stream <- x
+	q.Metrics.QueuePut()
 	atomic.AddInt64(&q.spinlock, -1)
 	return true
 }
