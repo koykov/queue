@@ -30,6 +30,10 @@ type BalancedQueue struct {
 }
 
 func (q *BalancedQueue) init() {
+	if q.Metrics == nil {
+		q.Metrics = &DummyMetrics{}
+	}
+
 	q.stream = make(stream, q.Size)
 
 	if q.WorkersMin == 0 {

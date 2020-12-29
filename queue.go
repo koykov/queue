@@ -51,6 +51,10 @@ type Queue struct {
 }
 
 func (q *Queue) init() {
+	if q.Metrics == nil {
+		q.Metrics = &DummyMetrics{}
+	}
+
 	q.stream = make(stream, q.Size)
 
 	if q.Workers == 0 {
