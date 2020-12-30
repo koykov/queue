@@ -7,22 +7,22 @@ type Prometheus struct {
 }
 
 var (
-	queueSize *prometheus.GaugeVec
+	queueSize,
+	workerIdle, workerActive, workerSleep *prometheus.GaugeVec
 
-	workerIdle, workerActive, workerSleep,
 	queueIn, queueOut, queueLeak *prometheus.CounterVec
 )
 
 func init() {
-	workerIdle = prometheus.NewCounterVec(prometheus.CounterOpts{
+	workerIdle = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "queue_workers_idle",
 		Help: "Indicates how many workers idle.",
 	}, []string{"queue"})
-	workerActive = prometheus.NewCounterVec(prometheus.CounterOpts{
+	workerActive = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "queue_workers_active",
 		Help: "Indicates how many workers active.",
 	}, []string{"queue"})
-	workerSleep = prometheus.NewCounterVec(prometheus.CounterOpts{
+	workerSleep = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "queue_workers_sleep",
 		Help: "Indicates how many workers sleep.",
 	}, []string{"queue"})
