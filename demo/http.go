@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/koykov/queue"
-	log2 "github.com/koykov/queue/metrics/log"
+	"github.com/koykov/queue/metrics/prometheus"
 )
 
 type QueueHTTP struct {
@@ -73,8 +73,8 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			wakeupFactor, sleepFactor float32
 
 			heartbeat time.Duration
-			// metrics   = prometheus.NewMetricsWriter(key)
-			metrics = log2.NewMetricsWriter(key)
+			metrics   = prometheus.NewMetricsWriter(key)
+			// metrics = log2.NewMetricsWriter(key)
 		)
 
 		if qsize := r.FormValue("size"); len(qsize) > 0 {

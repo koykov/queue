@@ -1,5 +1,7 @@
 package queue
 
+import "sync/atomic"
+
 type Leaker interface {
 	Catch(x interface{})
 }
@@ -14,10 +16,13 @@ func (q *BalancedLeakyQueue) Put(x interface{}) bool {
 		q.once.Do(q.init)
 	}
 
-	q.rebalance()
+	if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
+		q.rebalance()
+	}
 	select {
 	case q.stream <- x:
 		q.Metrics.QueuePut()
+		atomic.AddInt64(&q.spinlock, -1)
 		return true
 	default:
 		if q.Leaker != nil {

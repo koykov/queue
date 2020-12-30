@@ -41,11 +41,10 @@ type Queue struct {
 	workers []*worker
 	ctl     []ctl
 
-	proc Proc
-
 	once sync.Once
 
 	Key     string
+	Proc    Proc
 	Workers uint32
 	Metrics MetricsWriter
 }
@@ -53,6 +52,9 @@ type Queue struct {
 func (q *Queue) init() {
 	if q.Metrics == nil {
 		q.Metrics = &DummyMetrics{}
+	}
+	if q.Proc == nil {
+		q.Proc = DummyProc
 	}
 
 	q.stream = make(stream, q.Size)
@@ -67,7 +69,7 @@ func (q *Queue) init() {
 		q.workers[i] = &worker{
 			idx:     i,
 			status:  wstatusIdle,
-			proc:    q.proc,
+			proc:    q.Proc,
 			metrics: q.Metrics,
 		}
 		q.ctl[i] = make(ctl)

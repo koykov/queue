@@ -33,6 +33,9 @@ func (q *BalancedQueue) init() {
 	if q.Metrics == nil {
 		q.Metrics = &DummyMetrics{}
 	}
+	if q.Proc == nil {
+		q.Proc = DummyProc
+	}
 
 	q.stream = make(stream, q.Size)
 
@@ -61,7 +64,7 @@ func (q *BalancedQueue) init() {
 		q.workers[i] = &worker{
 			idx:     i,
 			status:  wstatusIdle,
-			proc:    q.proc,
+			proc:    q.Proc,
 			metrics: q.Metrics,
 		}
 	}
