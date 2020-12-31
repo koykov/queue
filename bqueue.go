@@ -60,6 +60,7 @@ func (q *BalancedQueue) init() {
 	q.workers = make([]*worker, q.WorkersMax)
 	var i uint32
 	for i = 0; i < q.WorkersMax; i++ {
+		q.Metrics.WorkerSleep(i)
 		q.ctl[i] = make(chan signal)
 		q.workers[i] = &worker{
 			idx:     i,
@@ -106,15 +107,19 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 
 func (q *BalancedQueue) rebalance() {
 	q.mux.Lock()
+	defer q.mux.Unlock()
 
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
 	q.spinlock = 0
 
 	rate := q.lcRate()
+	if rate < q.SleepFactor || q.workerUp == q.WorkersMax {
+		return
+	}
 	switch {
 	case rate >= q.WakeupFactor:
-		i := q.workerUp
-		q.workers[i].observe(q.stream, q.ctl[i])
+		i := q.workerUp - 1
+		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalResume
 		q.workerUp++
 	case rate <= q.SleepFactor:
@@ -125,7 +130,6 @@ func (q *BalancedQueue) rebalance() {
 	default:
 		q.status = qstatusActive
 	}
-	q.mux.Unlock()
 }
 
 func (q *BalancedQueue) lcRate() float32 {

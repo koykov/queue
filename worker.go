@@ -17,7 +17,6 @@ func (w *worker) observe(stream stream, ctl ctl) {
 			case signalStop:
 				w.status = wstatusIdle
 				w.metrics.WorkerStop(w.idx)
-				return
 			case signalSleep:
 				w.status = wstatusSleep
 				w.metrics.WorkerSleep(w.idx)

@@ -20,6 +20,7 @@ const (
 )
 
 type producer struct {
+	idx    uint32
 	status status
 }
 
