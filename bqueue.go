@@ -17,8 +17,8 @@ const (
 type BalancedQueue struct {
 	Queue
 
-	workerUp uint32
-	spinlock int64
+	workersUp uint32
+	spinlock  int64
 
 	WakeupFactor float32
 	SleepFactor  float32
@@ -73,7 +73,7 @@ func (q *BalancedQueue) init() {
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalInit
 	}
-	q.workerUp = q.WorkersMin
+	q.workersUp = q.WorkersMin
 
 	if q.Heartbeat == 0 {
 		q.Heartbeat = defaultHeartbeat
@@ -113,18 +113,18 @@ func (q *BalancedQueue) rebalance() {
 	q.spinlock = 0
 
 	rate := q.lcRate()
-	if rate < q.SleepFactor || q.workerUp == q.WorkersMax {
+	if rate < q.SleepFactor || q.workersUp == q.WorkersMax {
 		return
 	}
 	switch {
 	case rate >= q.WakeupFactor:
-		i := q.workerUp - 1
+		i := q.workersUp - 1
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalResume
-		q.workerUp++
+		q.workersUp++
 	case rate <= q.SleepFactor:
-		q.ctl[q.workerUp] <- signalSleep
-		q.workerUp--
+		q.ctl[q.workersUp] <- signalSleep
+		q.workersUp--
 	case rate == 1:
 		q.status = qstatusThrottle
 	default:
