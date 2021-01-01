@@ -17,7 +17,8 @@ const (
 type BalancedQueue struct {
 	Queue
 
-	workersUp uint32
+	workersUp int32
+	acqlock   uint32
 	spinlock  int64
 
 	WakeupFactor float32
@@ -73,7 +74,7 @@ func (q *BalancedQueue) init() {
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalInit
 	}
-	q.workersUp = q.WorkersMin
+	q.workersUp = int32(q.WorkersMin)
 
 	if q.Heartbeat == 0 {
 		q.Heartbeat = defaultHeartbeat
@@ -108,28 +109,32 @@ func (q *BalancedQueue) Put(x interface{}) bool {
 func (q *BalancedQueue) rebalance() {
 	q.mux.Lock()
 	defer q.mux.Unlock()
+	if atomic.LoadUint32(&q.acqlock) == 1 {
+		return
+	}
+
+	atomic.StoreUint32(&q.acqlock, 1)
 
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
 	q.spinlock = 0
 
 	rate := q.lcRate()
-	if rate < q.SleepFactor || q.workersUp == q.WorkersMax {
-		return
-	}
 	switch {
 	case rate >= q.WakeupFactor:
 		i := q.workersUp - 1
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalResume
-		q.workersUp++
+		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.SleepFactor:
-		q.ctl[q.workersUp] <- signalSleep
-		q.workersUp--
+		q.ctl[q.workersUp-1] <- signalSleep
+		atomic.AddInt32(&q.workersUp, -1)
 	case rate == 1:
 		q.status = qstatusThrottle
 	default:
 		q.status = qstatusActive
 	}
+
+	atomic.StoreUint32(&q.acqlock, 0)
 }
 
 func (q *BalancedQueue) lcRate() float32 {
