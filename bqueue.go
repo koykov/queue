@@ -7,10 +7,6 @@ import (
 )
 
 const (
-	defaultWakeupFactor = .75
-	defaultSleepFactor  = .5
-	defaultHeartbeat    = time.Millisecond
-
 	spinlockLimit = 1000
 )
 
