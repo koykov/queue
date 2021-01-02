@@ -9,16 +9,18 @@ const (
 )
 
 type Config struct {
-	Size      uint64
+	Size      uint64 `json:"size"`
 	Proc      Proc
-	Workers   uint32
-	Heartbeat time.Duration
+	Workers   uint32        `json:"workers"`
+	Heartbeat time.Duration `json:"heartbeat"`
 
-	WorkersMin, WorkersMax    uint32
-	WakeupFactor, SleepFactor float32
+	WorkersMin   uint32  `json:"workers_min"`
+	WorkersMax   uint32  `json:"workers_max"`
+	WakeupFactor float32 `json:"wakeup_factor"`
+	SleepFactor  float32 `json:"sleep_factor"`
 
 	LeakyHandler Leaker
 
-	MetricsKey     string
+	MetricsKey     string `json:"metrics_key"`
 	MetricsHandler MetricsWriter
 }

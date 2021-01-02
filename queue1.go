@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"encoding/json"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -138,7 +139,45 @@ func (q *Queue1) Enqueue(x interface{}) bool {
 }
 
 func (q *Queue1) String() string {
-	return ""
+	var out = struct {
+		Config        Config `json:"config"`
+		Status        string `json:"status"`
+		WorkersIdle   int    `json:"workers_idle"`
+		WorkersActive int    `json:"workers_active"`
+		WorkersSleep  int    `json:"workers_sleep"`
+	}{}
+
+	out.Config = q.config
+
+	switch q.status {
+	case StatusNil:
+		out.Status = "inactive"
+	case StatusFail:
+		out.Status = "fail"
+	case StatusActive:
+		out.Status = "active"
+	case StatusThrottle:
+		out.Status = "throttle"
+	}
+
+	for _, w := range q.workers {
+		if w == nil {
+			out.WorkersIdle++
+		} else {
+			switch w.status {
+			case wstatusIdle:
+				out.WorkersIdle++
+			case wstatusActive:
+				out.WorkersActive++
+			case w.status:
+				out.WorkersSleep++
+			}
+		}
+	}
+
+	b, _ := json.Marshal(out)
+
+	return string(b)
 }
 
 func (q *Queue1) rebalance() {
