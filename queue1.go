@@ -17,7 +17,7 @@ const (
 )
 
 type flags struct {
-	blocked, balanced bool
+	balanced, leaky bool
 }
 
 // todo remove old queue types and rename this to Queue
@@ -79,7 +79,7 @@ func (q *Queue1) init() {
 	}
 
 	q.flags.balanced = c.WorkersMin < c.WorkersMax
-	q.flags.blocked = c.LeakyHandler == nil
+	q.flags.leaky = c.LeakyHandler != nil
 
 	q.ctl = make([]ctl, c.WorkersMax)
 	q.workers = make([]*worker, c.WorkersMax)
@@ -124,17 +124,22 @@ func (q *Queue1) Enqueue(x interface{}) bool {
 	if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
 		q.rebalance()
 	}
-	select {
-	case q.stream <- x:
+	if q.flags.leaky {
+		select {
+		case q.stream <- x:
+			q.config.MetricsHandler.QueuePut()
+			atomic.AddInt64(&q.spinlock, -1)
+			return true
+		default:
+			q.config.LeakyHandler.Catch(x)
+			q.config.MetricsHandler.QueueLeak()
+			return false
+		}
+	} else {
+		q.stream <- x
 		q.config.MetricsHandler.QueuePut()
 		atomic.AddInt64(&q.spinlock, -1)
 		return true
-	default:
-		if q.config.LeakyHandler != nil {
-			q.config.LeakyHandler.Catch(x)
-		}
-		q.config.MetricsHandler.QueueLeak()
-		return false
 	}
 }
 
