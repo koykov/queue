@@ -8,7 +8,7 @@ import (
 )
 
 type demoQueue struct {
-	queue *queue.Queue1
+	queue *queue.Queue
 
 	producersMin,
 	producersMax uint32

@@ -24,7 +24,7 @@ type producer struct {
 	status status
 }
 
-func (p *producer) produce(q *queue.Queue1, ctl chan signal) {
+func (p *producer) produce(q *queue.Queue, ctl chan signal) {
 	for {
 		select {
 		case cmd := <-ctl:
