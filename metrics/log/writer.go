@@ -11,6 +11,10 @@ func NewMetricsWriter(queueKey string) *Log {
 	return m
 }
 
+func (m *Log) WorkerSetup(active, sleep, stop uint) {
+	log.Printf("queue #%s: setup workers %d active, %d sleep and %d stop", m.queue, active, sleep, stop)
+}
+
 func (m *Log) WorkerSleep(idx uint32) {
 	log.Printf("queue %s: worker %d caught sleep signal\n", m.queue, idx)
 }

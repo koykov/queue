@@ -122,6 +122,7 @@ func (q *Queue) init() {
 		q.ctl[i] <- signalInit
 	}
 	q.workersUp = int32(c.WorkersMin)
+	c.MetricsHandler.WorkerSetup(uint(q.workersUp), uint(c.WorkersMax-uint32(q.workersUp)), 0)
 
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat

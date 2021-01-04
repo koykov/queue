@@ -1,6 +1,8 @@
 package prometheus
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type Prometheus struct {
 	queue string
@@ -51,6 +53,16 @@ func init() {
 func NewMetricsWriter(queueKey string) *Prometheus {
 	m := &Prometheus{queue: queueKey}
 	return m
+}
+
+func (m *Prometheus) WorkerSetup(active, sleep, stop uint) {
+	workerActive.DeleteLabelValues(m.queue)
+	workerSleep.DeleteLabelValues(m.queue)
+	workerIdle.DeleteLabelValues(m.queue)
+
+	workerActive.WithLabelValues(m.queue).Add(float64(active))
+	workerSleep.WithLabelValues(m.queue).Add(float64(sleep))
+	workerIdle.WithLabelValues(m.queue).Add(float64(stop))
 }
 
 func (m *Prometheus) WorkerSleep(_ uint32) {

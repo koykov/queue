@@ -2,6 +2,8 @@ package queue
 
 type DummyMetrics struct{}
 
+func (m *DummyMetrics) WorkerSetup(_, _, _ uint) {}
+
 func (m *DummyMetrics) WorkerSleep(_ uint32) {}
 
 func (m *DummyMetrics) WorkerWakeup(_ uint32) {}
