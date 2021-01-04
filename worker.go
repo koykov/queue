@@ -2,6 +2,20 @@ package queue
 
 import "log"
 
+type wstatus uint
+type signal uint
+
+const (
+	wstatusIdle wstatus = iota
+	wstatusActive
+	wstatusSleep
+
+	signalInit signal = iota
+	signalSleep
+	signalResume
+	signalStop
+)
+
 type ctl chan signal
 
 type worker struct {
