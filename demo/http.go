@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/koykov/queue"
 	"github.com/koykov/queue/metrics/prometheus"
@@ -36,6 +37,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		key string
 		err error
+		c   queue.Config
 		q   *demoQueue
 	)
 
@@ -64,28 +66,24 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var (
-			size               uint64
-			procsMin, procsMax uint32
-
-			workers, workersMin, workersMax uint32
-
-			wakeupFactor, sleepFactor float32
-
-			heartbeat time.Duration
-			metrics   = prometheus.NewMetricsWriter(key)
-			// metrics = log2.NewMetricsWriter(key)
-		)
-
-		if qsize := r.FormValue("size"); len(qsize) > 0 {
-			uqsize, err := strconv.ParseUint(qsize, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			size = uqsize
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Println("err", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
+
+		err = json.Unmarshal(body, &c)
+		if err != nil {
+			log.Println("err", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		c.MetricsHandler = prometheus.NewMetricsWriter(c.MetricsKey)
+
+		var (
+			procsMin, procsMax uint32
+		)
 
 		if pmin := r.FormValue("pmin"); len(pmin) > 0 {
 			upmin, err := strconv.ParseUint(pmin, 10, 32)
@@ -107,108 +105,9 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			procsMax = uint32(upmax)
 		}
 
-		if work := r.FormValue("work"); len(work) > 0 {
-			uwork, err := strconv.ParseUint(work, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			workers = uint32(uwork)
-		}
-
-		if wmin := r.FormValue("wmin"); len(wmin) > 0 {
-			uwmin, err := strconv.ParseUint(wmin, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			workersMin = uint32(uwmin)
-		}
-
-		if wmax := r.FormValue("wmax"); len(wmax) > 0 {
-			uwmax, err := strconv.ParseUint(wmax, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			workersMax = uint32(uwmax)
-		}
-
-		if wakeup := r.FormValue("wakeup"); len(wakeup) > 0 {
-			fwakeup, err := strconv.ParseFloat(wakeup, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			wakeupFactor = float32(fwakeup)
-		}
-
-		if sleep := r.FormValue("sleep"); len(sleep) > 0 {
-			fsleep, err := strconv.ParseFloat(sleep, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			sleepFactor = float32(fsleep)
-		}
-
-		if hb := r.FormValue("hb"); len(hb) > 0 {
-			ihb, err := strconv.ParseInt(hb, 10, 64)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			heartbeat = time.Duration(ihb)
-		}
-
-		var qi queue.Queuer
-		typ := r.FormValue("type")
-		switch typ {
-		case "bqueue":
-			qi = &queue.BalancedQueue{
-				Queue: queue.Queue{
-					Size:    size,
-					Key:     key,
-					Metrics: metrics,
-				},
-				WorkersMin:   workersMin,
-				WorkersMax:   workersMax,
-				WakeupFactor: wakeupFactor,
-				SleepFactor:  sleepFactor,
-				Heartbeat:    heartbeat,
-			}
-		case "blqueue":
-			qi = &queue.BalancedLeakyQueue{
-				BalancedQueue: queue.BalancedQueue{
-					Queue: queue.Queue{
-						Size:    size,
-						Key:     key,
-						Metrics: metrics,
-					},
-					WorkersMin:   workersMin,
-					WorkersMax:   workersMax,
-					WakeupFactor: wakeupFactor,
-					SleepFactor:  sleepFactor,
-					Heartbeat:    heartbeat,
-				},
-				Leaker: nil,
-			}
-		case "queue":
-			fallthrough
-		default:
-			qi = &queue.Queue{
-				Size:    size,
-				Key:     key,
-				Workers: workers,
-				Metrics: metrics,
-			}
-		}
+		c.Proc = queue.DummyProc
+		c.LeakyHandler = &queue.DummyLeak{}
+		qi := queue.New(c)
 
 		q := demoQueue{
 			queue:        qi,

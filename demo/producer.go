@@ -24,7 +24,7 @@ type producer struct {
 	status status
 }
 
-func (p *producer) produce(q queue.Queuer, ctl chan signal) {
+func (p *producer) produce(q *queue.Queue1, ctl chan signal) {
 	for {
 		select {
 		case cmd := <-ctl:
@@ -48,7 +48,7 @@ func (p *producer) produce(q queue.Queuer, ctl chan signal) {
 				Header  uint32
 				Payload int64
 			}{4, math.MaxInt64}
-			q.Put(x)
+			q.Enqueue(x)
 		}
 	}
 }
