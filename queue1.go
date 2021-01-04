@@ -2,6 +2,7 @@ package queue
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -52,8 +53,10 @@ func New(config Config) *Queue1 {
 func (q *Queue1) init() {
 	c := &q.config
 
-	if c.MetricsHandler == nil {
-		c.MetricsHandler = &DummyMetrics{}
+	if c.Size == 0 {
+		q.Err = ErrNoSize
+		q.status = StatusFail
+		return
 	}
 	if c.Proc == nil {
 		q.Err = ErrNoProc
@@ -61,11 +64,22 @@ func (q *Queue1) init() {
 		return
 	}
 
+	q.stream = make(stream, c.Size)
+
+	if c.MetricsHandler == nil {
+		c.MetricsHandler = &DummyMetrics{}
+	}
+
 	if c.Workers > 0 && c.WorkersMin == 0 {
 		c.WorkersMin = c.Workers
 	}
 	if c.Workers > 0 && c.WorkersMax == 0 {
 		c.WorkersMax = c.Workers
+	}
+	if c.WorkersMax == 0 {
+		q.Err = ErrNoWorker
+		q.status = StatusFail
+		return
 	}
 
 	if c.WakeupFactor <= 0 {
@@ -103,15 +117,17 @@ func (q *Queue1) init() {
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat
 	}
-	tickerHB := time.NewTicker(c.Heartbeat)
-	go func() {
-		for {
-			select {
-			case <-tickerHB.C:
-				q.rebalance()
+	if q.flags.balanced {
+		tickerHB := time.NewTicker(c.Heartbeat)
+		go func() {
+			for {
+				select {
+				case <-tickerHB.C:
+					q.rebalance()
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	q.status = StatusActive
 }
@@ -121,8 +137,10 @@ func (q *Queue1) Enqueue(x interface{}) bool {
 		q.once.Do(q.init)
 	}
 
-	if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
-		q.rebalance()
+	if q.flags.balanced {
+		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
+			q.rebalance()
+		}
 	}
 	if q.flags.leaky {
 		select {
@@ -200,13 +218,22 @@ func (q *Queue1) rebalance() {
 	rate := q.lcRate()
 	switch {
 	case rate >= q.config.WakeupFactor:
-		i := q.workersUp - 1
+		i := q.workersUp
+		if uint32(i) == q.config.WorkersMax {
+			return
+		}
 		go q.workers[i].observe(q.stream, q.ctl[i])
+		log.Printf("send resume #%d\n", i)
 		q.ctl[i] <- signalResume
+		log.Printf("sended resume #%d\n", i)
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
-		q.ctl[q.workersUp-1] <- signalSleep
+		i := q.workersUp - 1
+		if uint32(i) < q.config.WorkersMin {
+			return
+		}
 		atomic.AddInt32(&q.workersUp, -1)
+		q.ctl[i] <- signalSleep
 	case rate == 1:
 		q.status = StatusThrottle
 	default:

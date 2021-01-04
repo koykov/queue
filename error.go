@@ -3,5 +3,7 @@ package queue
 import "errors"
 
 var (
-	ErrNoProc = errors.New("no processing function provided")
+	ErrNoSize   = errors.New("size size must be greater than zero")
+	ErrNoProc   = errors.New("no processing function provided")
+	ErrNoWorker = errors.New("no workers available")
 )

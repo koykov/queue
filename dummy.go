@@ -17,3 +17,9 @@ func (m *DummyMetrics) QueueLeak() {}
 func DummyProc(x interface{}) {
 	_ = x
 }
+
+type DummyLeak struct{}
+
+func (l *DummyLeak) Catch(x interface{}) {
+	_ = x
+}

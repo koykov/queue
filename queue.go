@@ -5,22 +5,23 @@ import (
 	"sync"
 )
 
-type status uint
+type qstatus uint
+type wstatus uint
 type signal uint
 
 const (
-	qstatusNil      status = 0
-	qstatusActive          = 1
-	qstatusThrottle        = 2
+	qstatusNil      qstatus = 0
+	qstatusActive   qstatus = 1
+	qstatusThrottle qstatus = 2
 
-	wstatusIdle   status = 0
-	wstatusActive        = 1
-	wstatusSleep         = 2
+	wstatusIdle   wstatus = 0
+	wstatusActive wstatus = 1
+	wstatusSleep  wstatus = 2
 
 	signalInit   signal = 0
-	signalSleep         = 1
-	signalResume        = 2
-	signalStop          = 3
+	signalSleep  signal = 1
+	signalResume signal = 2
+	signalStop   signal = 3
 )
 
 type stream chan interface{}
@@ -33,7 +34,7 @@ type Queuer interface {
 type Proc func(x interface{})
 
 type Queue struct {
-	status status
+	status qstatus
 	stream stream
 	Size   uint64
 
