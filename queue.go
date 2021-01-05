@@ -109,7 +109,7 @@ func (q *Queue) init() {
 	var i uint32
 	for i = 0; i < c.WorkersMax; i++ {
 		c.MetricsHandler.WorkerSleep(i)
-		q.ctl[i] = make(chan signal)
+		q.ctl[i] = make(chan signal, 1)
 		q.workers[i] = &worker{
 			idx:     i,
 			status:  wstatusIdle,
