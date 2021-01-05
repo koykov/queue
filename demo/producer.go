@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"time"
 
 	"github.com/koykov/queue"
 )
@@ -48,6 +49,7 @@ func (p *producer) produce(q *queue.Queue, ctl chan signal) {
 				Header  uint32
 				Payload int64
 			}{4, math.MaxInt64}
+			time.Sleep(time.Nanosecond * 50)
 			q.Enqueue(x)
 		}
 	}

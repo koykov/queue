@@ -1,6 +1,8 @@
 package queue
 
-import "log"
+import (
+	"log"
+)
 
 type wstatus uint
 type signal uint
@@ -35,10 +37,11 @@ func (w *worker) observe(stream stream, ctl ctl) {
 				w.metrics.WorkerStop(w.idx)
 				return
 			case signalSleep:
+				log.Printf("sleep #%d\n", w.idx)
 				w.status = wstatusSleep
 				w.metrics.WorkerSleep(w.idx)
 			case signalInit, signalResume:
-				log.Printf("caught init/resume #%d\n", w.idx)
+				log.Printf("resume #%d\n", w.idx)
 				w.status = wstatusActive
 				w.metrics.WorkerWakeup(w.idx)
 			}

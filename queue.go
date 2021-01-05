@@ -152,10 +152,10 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			q.rebalance()
 		}
 	}
+	q.config.MetricsHandler.QueuePut()
 	if q.flags.leaky {
 		select {
 		case q.stream <- x:
-			q.config.MetricsHandler.QueuePut()
 			atomic.AddInt64(&q.spinlock, -1)
 			return true
 		default:
@@ -165,7 +165,6 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		}
 	} else {
 		q.stream <- x
-		q.config.MetricsHandler.QueuePut()
 		atomic.AddInt64(&q.spinlock, -1)
 		return true
 	}
@@ -215,7 +214,10 @@ func (q *Queue) String() string {
 
 func (q *Queue) rebalance() {
 	q.mux.Lock()
-	defer q.mux.Unlock()
+	defer func() {
+		atomic.StoreUint32(&q.acqlock, 0)
+		q.mux.Unlock()
+	}()
 	if atomic.LoadUint32(&q.acqlock) == 1 {
 		return
 	}
@@ -226,6 +228,7 @@ func (q *Queue) rebalance() {
 	q.spinlock = 0
 
 	rate := q.lcRate()
+	log.Println("rate", rate)
 	switch {
 	case rate >= q.config.WakeupFactor:
 		i := q.workersUp
@@ -233,9 +236,7 @@ func (q *Queue) rebalance() {
 			return
 		}
 		go q.workers[i].observe(q.stream, q.ctl[i])
-		log.Printf("send resume #%d\n", i)
 		q.ctl[i] <- signalResume
-		log.Printf("sended resume #%d\n", i)
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
 		i := q.workersUp - 1
@@ -249,8 +250,6 @@ func (q *Queue) rebalance() {
 	default:
 		q.status = StatusActive
 	}
-
-	atomic.StoreUint32(&q.acqlock, 0)
 }
 
 func (q *Queue) lcRate() float32 {

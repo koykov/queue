@@ -92,4 +92,5 @@ func (m *Prometheus) QueuePull() {
 
 func (m *Prometheus) QueueLeak() {
 	queueLeak.WithLabelValues(m.queue).Inc()
+	queueSize.WithLabelValues(m.queue).Dec()
 }

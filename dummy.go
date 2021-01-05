@@ -1,5 +1,7 @@
 package queue
 
+import "time"
+
 type DummyMetrics struct{}
 
 func (m *DummyMetrics) WorkerSetup(_, _, _ uint) {}
@@ -18,6 +20,7 @@ func (m *DummyMetrics) QueueLeak() {}
 
 func DummyProc(x interface{}) {
 	_ = x
+	time.Sleep(time.Nanosecond * 55)
 }
 
 type DummyLeak struct{}

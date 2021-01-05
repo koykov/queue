@@ -5,7 +5,7 @@ import "time"
 const (
 	defaultWakeupFactor = .75
 	defaultSleepFactor  = .5
-	defaultHeartbeat    = time.Millisecond
+	defaultHeartbeat    = time.Second
 )
 
 type Config struct {
