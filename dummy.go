@@ -20,7 +20,7 @@ func (m *DummyMetrics) QueueLeak() {}
 
 func DummyProc(x interface{}) {
 	_ = x
-	time.Sleep(time.Nanosecond * 55)
+	time.Sleep(time.Nanosecond * 75)
 }
 
 type DummyLeak struct{}

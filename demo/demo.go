@@ -18,7 +18,7 @@ type demoQueue struct {
 
 func (d *demoQueue) Run() {
 	for i := 0; i < int(d.producersMin); i++ {
-		d.ctl[i] = make(chan signal)
+		d.ctl[i] = make(chan signal, 1)
 		d.producers[i].idx = uint32(i)
 		go d.producers[i].produce(d.queue, d.ctl[i])
 		d.ctl[i] <- signalInit

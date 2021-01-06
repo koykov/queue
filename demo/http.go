@@ -106,7 +106,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		c.Proc = queue.DummyProc
-		c.LeakyHandler = &queue.DummyLeak{}
+		// c.LeakyHandler = &queue.DummyLeak{}
 		qi := queue.New(c)
 
 		q := demoQueue{
