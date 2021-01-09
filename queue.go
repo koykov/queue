@@ -32,8 +32,6 @@ type Queue struct {
 	status Status
 	stream stream
 
-	wm, hwm, swm, wwm watermark
-
 	mux     sync.Mutex
 	workers []*worker
 	ctl     []ctl
@@ -101,12 +99,7 @@ func (q *Queue) init() {
 		c.WakeupFactor = c.SleepFactor
 	}
 
-	q.hwm.set(c.Size)
-	q.wm.set(0)
-	q.swm.set(uint64(float64(c.Size) * c.SleepFactor))
-	q.wwm.set(uint64(float64(c.Size) * c.WakeupFactor))
-
-	q.stream = make(stream, q.hwm.get())
+	q.stream = make(stream, c.Size)
 
 	q.flags.balanced = c.WorkersMin < c.WorkersMax
 	q.flags.leaky = c.LeakyHandler != nil
@@ -120,7 +113,6 @@ func (q *Queue) init() {
 		q.workers[i] = &worker{
 			idx:     i,
 			status:  wstatusIdle,
-			wm:      &q.wm,
 			proc:    c.Proc,
 			metrics: c.MetricsHandler,
 		}
@@ -173,7 +165,6 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		}
 	} else {
 		q.stream <- x
-		q.wm.inc()
 		atomic.AddInt64(&q.spinlock, -1)
 		return true
 	}
@@ -236,12 +227,10 @@ func (q *Queue) rebalance() {
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
 	q.spinlock = 0
 
-	// rate := q.lcRate()
-	// log.Println("rate", rate)
-	log.Println("wm", q.wm.get(), "wwm", q.wwm.get(), "swm", q.swm.get(), "hwm", q.hwm.get())
+	rate := q.lcRate()
+	log.Println("rate", rate)
 	switch {
-	case q.wm >= q.wwm:
-		// case rate >= q.config.WakeupFactor:
+	case rate >= q.config.WakeupFactor:
 		i := q.workersUp
 		if uint32(i) == q.config.WorkersMax {
 			return
@@ -249,16 +238,14 @@ func (q *Queue) rebalance() {
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalResume
 		atomic.AddInt32(&q.workersUp, 1)
-	case q.wm <= q.swm:
-		// case rate <= q.config.SleepFactor:
+	case rate <= q.config.SleepFactor:
 		i := q.workersUp - 1
 		if uint32(i) < q.config.WorkersMin {
 			return
 		}
 		atomic.AddInt32(&q.workersUp, -1)
 		q.ctl[i] <- signalSleep
-	// case rate == 1:
-	case q.wm >= q.hwm:
+	case rate == 1:
 		q.status = StatusThrottle
 	default:
 		q.status = StatusActive

@@ -23,7 +23,6 @@ type ctl chan signal
 type worker struct {
 	idx     uint32
 	status  wstatus
-	wm      *watermark
 	proc    Proc
 	metrics MetricsWriter
 }
@@ -49,7 +48,6 @@ func (w *worker) observe(stream stream, ctl ctl) {
 		default:
 			if w.status == wstatusActive {
 				w.proc(<-stream)
-				w.wm.dec()
 				w.metrics.QueuePull()
 			}
 		}

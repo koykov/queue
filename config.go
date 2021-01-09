@@ -16,8 +16,8 @@ type Config struct {
 
 	WorkersMin   uint32  `json:"workers_min"`
 	WorkersMax   uint32  `json:"workers_max"`
-	WakeupFactor float64 `json:"wakeup_factor"`
-	SleepFactor  float64 `json:"sleep_factor"`
+	WakeupFactor float32 `json:"wakeup_factor"`
+	SleepFactor  float32 `json:"sleep_factor"`
 
 	LeakyHandler Leaker
 
