@@ -117,12 +117,12 @@ func (q *Queue) init() {
 			metrics: c.MetricsHandler,
 		}
 	}
+	c.MetricsHandler.WorkerSetup(0, uint(c.WorkersMax), 0)
 	for i = 0; i < c.WorkersMin; i++ {
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalInit
 	}
 	q.workersUp = int32(c.WorkersMin)
-	c.MetricsHandler.WorkerSetup(uint(q.workersUp), uint(c.WorkersMax-uint32(q.workersUp)), 0)
 
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat
