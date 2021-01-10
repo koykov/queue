@@ -170,48 +170,6 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	}
 }
 
-func (q *Queue) String() string {
-	var out = struct {
-		Config        Config `json:"config"`
-		Status        string `json:"status"`
-		WorkersIdle   int    `json:"workers_idle"`
-		WorkersActive int    `json:"workers_active"`
-		WorkersSleep  int    `json:"workers_sleep"`
-	}{}
-
-	out.Config = q.config
-
-	switch q.status {
-	case StatusNil:
-		out.Status = "inactive"
-	case StatusFail:
-		out.Status = "fail"
-	case StatusActive:
-		out.Status = "active"
-	case StatusThrottle:
-		out.Status = "throttle"
-	}
-
-	for _, w := range q.workers {
-		if w == nil {
-			out.WorkersIdle++
-		} else {
-			switch w.status {
-			case wstatusIdle:
-				out.WorkersIdle++
-			case wstatusActive:
-				out.WorkersActive++
-			case w.status:
-				out.WorkersSleep++
-			}
-		}
-	}
-
-	b, _ := json.Marshal(out)
-
-	return string(b)
-}
-
 func (q *Queue) rebalance() {
 	q.mux.Lock()
 	defer func() {
@@ -254,4 +212,60 @@ func (q *Queue) rebalance() {
 
 func (q *Queue) lcRate() float32 {
 	return float32(len(q.stream)) / float32(cap(q.stream))
+}
+
+func (q *Queue) String() string {
+	var out = struct {
+		Size          uint64        `json:"size"`
+		Workers       uint32        `json:"workers"`
+		Heartbeat     time.Duration `json:"heartbeat"`
+		WorkersMin    uint32        `json:"workers_min"`
+		WorkersMax    uint32        `json:"workers_max"`
+		WakeupFactor  float32       `json:"wakeup_factor"`
+		SleepFactor   float32       `json:"sleep_factor"`
+		Status        string        `json:"status"`
+		FullnessRate  float32       `json:"fullness_rate"`
+		WorkersIdle   int           `json:"workers_idle"`
+		WorkersActive int           `json:"workers_active"`
+		WorkersSleep  int           `json:"workers_sleep"`
+	}{}
+
+	out.Size = q.config.Size
+	out.Workers = q.config.Workers
+	out.Heartbeat = q.config.Heartbeat
+	out.WorkersMin = q.config.WorkersMin
+	out.WorkersMax = q.config.WorkersMax
+	out.WakeupFactor = q.config.WakeupFactor
+	out.SleepFactor = q.config.SleepFactor
+
+	switch q.status {
+	case StatusNil:
+		out.Status = "inactive"
+	case StatusFail:
+		out.Status = "fail"
+	case StatusActive:
+		out.Status = "active"
+	case StatusThrottle:
+		out.Status = "throttle"
+	}
+	out.FullnessRate = q.lcRate()
+
+	for _, w := range q.workers {
+		if w == nil {
+			out.WorkersIdle++
+		} else {
+			switch w.status {
+			case wstatusIdle:
+				out.WorkersIdle++
+			case wstatusActive:
+				out.WorkersActive++
+			case w.status:
+				out.WorkersSleep++
+			}
+		}
+	}
+
+	b, _ := json.Marshal(out)
+
+	return string(b)
 }
