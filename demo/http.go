@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 
 	"github.com/koykov/queue"
@@ -37,7 +36,6 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		key string
 		err error
-		c   queue.Config
 		q   *demoQueue
 	)
 
@@ -73,48 +71,41 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = json.Unmarshal(body, &c)
+		var (
+			req  RequestInit
+			conf queue.Config
+		)
+
+		err = json.Unmarshal(body, &req)
 		if err != nil {
 			log.Println("err", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		c.MetricsHandler = prometheus.NewMetricsWriter(c.MetricsKey)
-
-		var (
-			procsMin, procsMax uint32
-		)
-
-		if pmin := r.FormValue("pmin"); len(pmin) > 0 {
-			upmin, err := strconv.ParseUint(pmin, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			procsMin = uint32(upmin)
+		if len(req.MetricsKey) == 0 {
+			req.MetricsKey = key
 		}
 
-		if pmax := r.FormValue("pmax"); len(pmax) > 0 {
-			upmax, err := strconv.ParseUint(pmax, 10, 32)
-			if err != nil {
-				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			procsMax = uint32(upmax)
-		}
+		conf.Size = req.Size
+		conf.Workers = req.Workers
+		conf.Heartbeat = req.Heartbeat
+		conf.WorkersMin = req.WorkersMin
+		conf.WorkersMax = req.WorkersMax
+		conf.WakeupFactor = req.WakeupFactor
+		conf.SleepFactor = req.SleepFactor
+		conf.MetricsKey = req.MetricsKey
 
-		c.Proc = queue.DummyProc
+		conf.MetricsHandler = prometheus.NewMetricsWriter(conf.MetricsKey)
+		conf.Proc = queue.DummyProc
 		// c.LeakyHandler = &queue.DummyLeak{}
-		qi := queue.New(c)
+		qi := queue.New(conf)
 
 		q := demoQueue{
 			queue:        qi,
-			producersMin: procsMin,
-			producersMax: procsMax,
-			producers:    make([]producer, procsMax),
-			ctl:          make([]chan signal, procsMax),
+			producersMin: req.ProducersMin,
+			producersMax: req.ProducersMax,
+			producers:    make([]producer, req.ProducersMax),
+			ctl:          make([]chan signal, req.ProducersMax),
 		}
 
 		h.mux.Lock()
