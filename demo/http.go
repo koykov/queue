@@ -13,12 +13,12 @@ import (
 
 type QueueHTTP struct {
 	mux  sync.RWMutex
-	pool map[string]demoQueue
+	pool map[string]*demoQueue
 }
 
 func NewQueueHTTP() *QueueHTTP {
 	h := &QueueHTTP{
-		pool: make(map[string]demoQueue),
+		pool: make(map[string]*demoQueue),
 	}
 	return h
 }
@@ -27,7 +27,7 @@ func (h *QueueHTTP) get(key string) *demoQueue {
 	h.mux.RLock()
 	defer h.mux.RUnlock()
 	if q, ok := h.pool[key]; ok {
-		return &q
+		return q
 	}
 	return nil
 }
@@ -58,6 +58,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 	case r.URL.Path == "/api/v1/init":
 		if q != nil {
 			w.WriteHeader(http.StatusNotAcceptable)
@@ -111,7 +112,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.mux.Lock()
-		h.pool[key] = q
+		h.pool[key] = &q
 		h.mux.Unlock()
 
 		q.Run()
@@ -120,7 +121,18 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if _, err = w.Write([]byte("ok")); err != nil {
 			log.Println("err", err)
 			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+	case r.URL.Path == "/api/v1/producer-up" && q != nil:
+		if err := q.ProducerUp(); err != nil {
+			log.Println("err", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err = w.Write([]byte("ok")); err != nil {
+			log.Println("err", err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	default:
 		w.WriteHeader(http.StatusNotFound)

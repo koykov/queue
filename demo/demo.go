@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 
 	"github.com/koykov/queue"
 )
@@ -11,7 +12,8 @@ type demoQueue struct {
 	queue *queue.Queue
 
 	producersMin,
-	producersMax uint32
+	producersMax,
+	producersUp uint32
 	producers []producer
 	ctl       []chan signal
 }
@@ -23,6 +25,20 @@ func (d *demoQueue) Run() {
 		go d.producers[i].produce(d.queue, d.ctl[i])
 		d.ctl[i] <- signalInit
 	}
+	d.producersUp = d.producersMin
+}
+
+func (d *demoQueue) ProducerUp() error {
+	i := d.producersUp
+	if i == d.producersMax {
+		return errors.New("maximum producers count reached")
+	}
+	d.producers[i].idx = i
+	d.ctl[i] = make(chan signal, 1)
+	go d.producers[i].produce(d.queue, d.ctl[i])
+	d.ctl[i] <- signalInit
+	d.producersUp++
+	return nil
 }
 
 func (d *demoQueue) String() string {
