@@ -41,6 +41,19 @@ func (d *demoQueue) ProducerUp() error {
 	return nil
 }
 
+func (d *demoQueue) ProducerDown() error {
+	i := d.producersUp
+	if i < d.producersMin {
+		return errors.New("minimum producers count reached")
+	}
+	d.producers[i].idx = i
+	d.ctl[i] = make(chan signal, 1)
+	go d.producers[i].produce(d.queue, d.ctl[i])
+	d.ctl[i] <- signalSleep
+	d.producersUp--
+	return nil
+}
+
 func (d *demoQueue) String() string {
 	var out = &struct {
 		Queue           string `json:"queue"`
