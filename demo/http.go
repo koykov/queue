@@ -97,7 +97,9 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		conf.MetricsHandler = prometheus.NewMetricsWriter(conf.MetricsKey)
 		conf.Proc = queue.DummyProc
-		// c.LeakyHandler = &queue.DummyLeak{}
+		if req.AllowLeak {
+			conf.LeakyHandler = &queue.DummyLeak{}
+		}
 		qi := queue.New(conf)
 
 		q := demoQueue{

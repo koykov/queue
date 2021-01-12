@@ -16,4 +16,6 @@ type RequestInit struct {
 
 	ProducersMin uint32 `json:"producers_min"`
 	ProducersMax uint32 `json:"producers_max"`
+
+	AllowLeak bool `json:"allow_leak"`
 }
