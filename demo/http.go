@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/koykov/queue"
@@ -124,7 +125,17 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case r.URL.Path == "/api/v1/producer-up" && q != nil:
-		if err := q.ProducerUp(); err != nil {
+		var delta uint32
+		if d := r.FormValue("delta"); len(d) > 0 {
+			ud, err := strconv.ParseUint(d, 10, 32)
+			if err != nil {
+				log.Println("err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			delta = uint32(ud)
+		}
+		if err := q.ProducerUp(delta); err != nil {
 			log.Println("err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -136,7 +147,17 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case r.URL.Path == "/api/v1/producer-down" && q != nil:
-		if err := q.ProducerDown(); err != nil {
+		var delta uint32
+		if d := r.FormValue("delta"); len(d) > 0 {
+			ud, err := strconv.ParseUint(d, 10, 32)
+			if err != nil {
+				log.Println("err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			delta = uint32(ud)
+		}
+		if err := q.ProducerDown(delta); err != nil {
 			log.Println("err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return

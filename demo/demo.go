@@ -28,29 +28,38 @@ func (d *demoQueue) Run() {
 	d.producersUp = d.producersMin
 }
 
-func (d *demoQueue) ProducerUp() error {
-	i := d.producersUp
-	if i == d.producersMax {
+func (d *demoQueue) ProducerUp(delta uint32) error {
+	if delta == 0 {
+		delta = 1
+	}
+	if d.producersUp+delta >= d.producersMax {
 		return errors.New("maximum producers count reached")
 	}
-	d.producers[i].idx = i
-	d.ctl[i] = make(chan signal, 1)
-	go d.producers[i].produce(d.queue, d.ctl[i])
-	d.ctl[i] <- signalInit
-	d.producersUp++
+	c := d.producersUp
+	for i := c; i < c+delta; i++ {
+		d.producers[i].idx = i
+		d.ctl[i] = make(chan signal, 1)
+		go d.producers[i].produce(d.queue, d.ctl[i])
+		d.ctl[i] <- signalInit
+		d.producersUp++
+	}
 	return nil
 }
 
-func (d *demoQueue) ProducerDown() error {
-	i := d.producersUp
-	if i < d.producersMin {
+func (d *demoQueue) ProducerDown(delta uint32) error {
+	if delta == 0 {
+		delta = 1
+	}
+	if d.producersUp-delta < d.producersMin {
 		return errors.New("minimum producers count reached")
 	}
-	d.producers[i].idx = i
-	d.ctl[i] = make(chan signal, 1)
-	go d.producers[i].produce(d.queue, d.ctl[i])
-	d.ctl[i] <- signalSleep
-	d.producersUp--
+	c := d.producersUp
+	for i := c; i > c-delta; i-- {
+		if d.producers[i].status == statusActive {
+			d.ctl[i] <- signalStop
+			d.producersUp--
+		}
+	}
 	return nil
 }
 
