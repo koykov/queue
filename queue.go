@@ -193,7 +193,9 @@ func (q *Queue) rebalance() {
 		if uint32(i) == q.config.WorkersMax {
 			return
 		}
-		go q.workers[i].observe(q.stream, q.ctl[i])
+		if q.workers[i].status == wstatusIdle {
+			go q.workers[i].observe(q.stream, q.ctl[i])
+		}
 		q.ctl[i] <- signalResume
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
