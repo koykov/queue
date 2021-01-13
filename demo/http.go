@@ -105,6 +105,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		qi := queue.New(conf)
 
 		q := demoQueue{
+			key:          key,
 			queue:        qi,
 			producersMin: req.ProducersMin,
 			producersMax: req.ProducersMax,
