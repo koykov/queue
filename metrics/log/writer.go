@@ -15,12 +15,16 @@ func (m *Log) WorkerSetup(active, sleep, stop uint) {
 	log.Printf("queue #%s: setup workers %d active, %d sleep and %d stop", m.queue, active, sleep, stop)
 }
 
+func (m *Log) WorkerInit(idx uint32) {
+	log.Printf("queue %s: worker %d caught init signal\n", m.queue, idx)
+}
+
 func (m *Log) WorkerSleep(idx uint32) {
 	log.Printf("queue %s: worker %d caught sleep signal\n", m.queue, idx)
 }
 
 func (m *Log) WorkerWakeup(idx uint32) {
-	log.Printf("queue %s: worker %d caught init/wakeup signal\n", m.queue, idx)
+	log.Printf("queue %s: worker %d caught wakeup signal\n", m.queue, idx)
 }
 
 func (m *Log) WorkerStop(idx uint32) {

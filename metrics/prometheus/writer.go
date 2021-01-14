@@ -65,6 +65,11 @@ func (m *Prometheus) WorkerSetup(active, sleep, stop uint) {
 	workerIdle.WithLabelValues(m.queue).Add(float64(stop))
 }
 
+func (m *Prometheus) WorkerInit(_ uint32) {
+	workerActive.WithLabelValues(m.queue).Inc()
+	workerIdle.WithLabelValues(m.queue).Add(-1)
+}
+
 func (m *Prometheus) WorkerSleep(_ uint32) {
 	workerSleep.WithLabelValues(m.queue).Inc()
 	workerActive.WithLabelValues(m.queue).Add(-1)
@@ -77,7 +82,7 @@ func (m *Prometheus) WorkerWakeup(_ uint32) {
 
 func (m *Prometheus) WorkerStop(_ uint32) {
 	workerIdle.WithLabelValues(m.queue).Inc()
-	workerActive.WithLabelValues(m.queue).Add(-1)
+	workerSleep.WithLabelValues(m.queue).Add(-1)
 }
 
 func (m *Prometheus) QueuePut() {

@@ -6,6 +6,7 @@ const (
 	defaultWakeupFactor = .75
 	defaultSleepFactor  = .5
 	defaultHeartbeat    = time.Second
+	defaultSleepTimeout = time.Second * 5
 )
 
 type Config struct {
@@ -18,6 +19,7 @@ type Config struct {
 	WorkersMax   uint32  `json:"workers_max"`
 	WakeupFactor float32 `json:"wakeup_factor"`
 	SleepFactor  float32 `json:"sleep_factor"`
+	SleepTimeout time.Duration
 
 	LeakyHandler Leaker
 

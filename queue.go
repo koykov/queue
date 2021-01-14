@@ -98,6 +98,9 @@ func (q *Queue) init() {
 	if c.WakeupFactor < c.SleepFactor {
 		c.WakeupFactor = c.SleepFactor
 	}
+	if c.SleepTimeout == 0 {
+		c.SleepTimeout = defaultSleepTimeout
+	}
 
 	q.stream = make(stream, c.Size)
 
@@ -117,7 +120,8 @@ func (q *Queue) init() {
 			metrics: c.MetricsHandler,
 		}
 	}
-	c.MetricsHandler.WorkerSetup(0, uint(c.WorkersMax), 0)
+	c.MetricsHandler.WorkerSetup(0, 0, uint(c.WorkersMax))
+
 	for i = 0; i < c.WorkersMin; i++ {
 		go q.workers[i].observe(q.stream, q.ctl[i])
 		q.ctl[i] <- signalInit
@@ -195,8 +199,10 @@ func (q *Queue) rebalance() {
 		}
 		if q.workers[i].status == wstatusIdle {
 			go q.workers[i].observe(q.stream, q.ctl[i])
+			q.ctl[i] <- signalInit
+		} else {
+			q.ctl[i] <- signalResume
 		}
-		q.ctl[i] <- signalResume
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
 		i := q.workersUp - 1
@@ -205,6 +211,12 @@ func (q *Queue) rebalance() {
 		}
 		atomic.AddInt32(&q.workersUp, -1)
 		q.ctl[i] <- signalSleep
+
+		for i := q.workersUp; uint32(i) < q.config.WorkersMax; i++ {
+			if q.workers[i].status == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
+				q.ctl[i] <- signalStop
+			}
+		}
 	case rate == 1:
 		q.status = StatusThrottle
 	default:
