@@ -3,7 +3,7 @@ package main
 import "github.com/prometheus/client_golang/prometheus"
 
 var (
-	producerIdle, producerActive, producerSleep *prometheus.GaugeVec
+	producerIdle, producerActive *prometheus.GaugeVec
 )
 
 func init() {
@@ -15,25 +15,16 @@ func init() {
 		Name: "queue_producers_active",
 		Help: "Indicates how many producers active.",
 	}, []string{"queue"})
-	producerSleep = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "queue_producers_sleep",
-		Help: "Indicates how many producers sleep.",
-	}, []string{"queue"})
 
-	prometheus.MustRegister(producerIdle, producerActive, producerSleep)
+	prometheus.MustRegister(producerIdle, producerActive)
 }
 
-func ProducerSleep(queue string) {
-	producerSleep.WithLabelValues(queue).Inc()
-	producerActive.WithLabelValues(queue).Add(-1)
-}
-
-func ProducerWakeup(queue string) {
+func ProducerStartMetric(queue string) {
 	producerActive.WithLabelValues(queue).Inc()
-	producerSleep.WithLabelValues(queue).Add(-1)
+	producerIdle.WithLabelValues(queue).Add(-1)
 }
 
-func ProducerStop(queue string) {
+func ProducerStopMetric(queue string) {
 	producerIdle.WithLabelValues(queue).Inc()
 	producerActive.WithLabelValues(queue).Add(-1)
 }

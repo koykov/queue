@@ -29,7 +29,6 @@ func (d *demoQueue) Run() {
 	d.producersUp = d.producersMin
 
 	producerActive.WithLabelValues(d.key).Add(float64(d.producersUp))
-	producerSleep.WithLabelValues(d.key).Add(0)
 	producerIdle.WithLabelValues(d.key).Add(float64(d.producersMax - d.producersUp))
 }
 
@@ -47,7 +46,7 @@ func (d *demoQueue) ProducerUp(delta uint32) error {
 		go d.producers[i].produce(d.queue, d.ctl[i])
 		d.ctl[i] <- signalInit
 		d.producersUp++
-		ProducerWakeup(d.key)
+		ProducerStartMetric(d.key)
 	}
 	return nil
 }
@@ -64,7 +63,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 		if d.producers[i].status == statusActive {
 			d.ctl[i] <- signalStop
 			d.producersUp--
-			ProducerStop(d.key)
+			ProducerStopMetric(d.key)
 		}
 	}
 	return nil
