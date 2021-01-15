@@ -15,6 +15,7 @@ const (
 	StatusFail
 	StatusActive
 	StatusThrottle
+	StatusClose
 
 	spinlockLimit = 1000
 )
@@ -150,6 +151,9 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	if q.status == StatusNil {
 		q.once.Do(q.init)
 	}
+	if q.status == StatusClose {
+		//
+	}
 
 	if q.flags.balanced {
 		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
@@ -172,6 +176,10 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		atomic.AddInt64(&q.spinlock, -1)
 		return true
 	}
+}
+
+func (q *Queue) Close() {
+	q.status = StatusClose
 }
 
 func (q *Queue) rebalance() {

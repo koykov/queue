@@ -168,6 +168,16 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Println("err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+
+	case r.URL.Path == "/api/v1/stop":
+		if q != nil {
+			q.Stop()
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err = w.Write([]byte("ok")); err != nil {
+			log.Println("err", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		return

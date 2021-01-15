@@ -20,8 +20,10 @@ type demoQueue struct {
 }
 
 func (d *demoQueue) Run() {
-	for i := 0; i < int(d.producersMin); i++ {
+	for i := 0; i < int(d.producersMax); i++ {
 		d.ctl[i] = make(chan signal, 1)
+	}
+	for i := 0; i < int(d.producersMin); i++ {
 		d.producers[i].idx = uint32(i)
 		go d.producers[i].produce(d.queue, d.ctl[i])
 		d.ctl[i] <- signalInit
@@ -42,7 +44,6 @@ func (d *demoQueue) ProducerUp(delta uint32) error {
 	c := d.producersUp
 	for i := c; i < c+delta; i++ {
 		d.producers[i].idx = i
-		d.ctl[i] = make(chan signal, 1)
 		go d.producers[i].produce(d.queue, d.ctl[i])
 		d.ctl[i] <- signalInit
 		d.producersUp++
@@ -67,6 +68,16 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 		}
 	}
 	return nil
+}
+
+func (d *demoQueue) Stop() {
+	c := d.producersUp
+	for i := c; i > 0; i-- {
+		d.ctl[i] <- signalStop
+		d.producersUp--
+		ProducerStopMetric(d.key)
+	}
+	d.queue.Close()
 }
 
 func (d *demoQueue) String() string {
