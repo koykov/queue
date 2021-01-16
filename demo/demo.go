@@ -58,7 +58,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 		return errors.New("minimum producers count reached")
 	}
 	c := d.producersUp
-	for i := c; i > c-delta; i-- {
+	for i := c; i >= c-delta; i-- {
 		if d.producers[i].status == statusActive {
 			d.producers[i].stop()
 			d.producersUp--
