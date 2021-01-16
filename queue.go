@@ -35,7 +35,6 @@ type Queue struct {
 
 	mux     sync.Mutex
 	workers []*worker
-	ctl     []ctl
 
 	once sync.Once
 
@@ -108,24 +107,17 @@ func (q *Queue) init() {
 	q.flags.balanced = c.WorkersMin < c.WorkersMax
 	q.flags.leaky = c.LeakyHandler != nil
 
-	q.ctl = make([]ctl, c.WorkersMax)
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
 	for i = 0; i < c.WorkersMax; i++ {
 		c.MetricsHandler.WorkerSleep(i)
-		q.ctl[i] = make(chan signal, 1)
-		q.workers[i] = &worker{
-			idx:     i,
-			status:  wstatusIdle,
-			proc:    c.Proc,
-			metrics: c.MetricsHandler,
-		}
+		q.workers[i] = makeWorker(i, c.Proc, c.MetricsHandler)
 	}
 	c.MetricsHandler.WorkerSetup(0, 0, uint(c.WorkersMax))
 
 	for i = 0; i < c.WorkersMin; i++ {
-		go q.workers[i].observe(q.stream, q.ctl[i])
-		q.ctl[i] <- signalInit
+		go q.workers[i].dequeue(q.stream)
+		q.workers[i].init()
 	}
 	q.workersUp = int32(c.WorkersMin)
 
@@ -206,10 +198,10 @@ func (q *Queue) rebalance() {
 			return
 		}
 		if q.workers[i].status == wstatusIdle {
-			go q.workers[i].observe(q.stream, q.ctl[i])
-			q.ctl[i] <- signalInit
+			go q.workers[i].dequeue(q.stream)
+			q.workers[i].init()
 		} else {
-			q.ctl[i] <- signalResume
+			q.workers[i].wakeup()
 		}
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
@@ -218,11 +210,11 @@ func (q *Queue) rebalance() {
 			return
 		}
 		atomic.AddInt32(&q.workersUp, -1)
-		q.ctl[i] <- signalSleep
+		q.workers[i].sleep()
 
 		for i := q.workersUp; uint32(i) < q.config.WorkersMax; i++ {
 			if q.workers[i].status == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
-				q.ctl[i] <- signalStop
+				q.workers[i].stop()
 			}
 		}
 	case rate == 1:

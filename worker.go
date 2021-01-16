@@ -24,15 +24,43 @@ type ctl chan signal
 type worker struct {
 	idx     uint32
 	status  wstatus
+	ctl     chan signal
 	lastTS  time.Time
 	proc    Proc
 	metrics MetricsWriter
 }
 
-func (w *worker) observe(stream stream, ctl ctl) {
+func makeWorker(idx uint32, proc Proc, metrics MetricsWriter) *worker {
+	w := &worker{
+		idx:     idx,
+		status:  wstatusIdle,
+		ctl:     make(chan signal, 1),
+		proc:    proc,
+		metrics: metrics,
+	}
+	return w
+}
+
+func (w *worker) init() {
+	w.ctl <- signalInit
+}
+
+func (w *worker) sleep() {
+	w.ctl <- signalSleep
+}
+
+func (w *worker) wakeup() {
+	w.ctl <- signalResume
+}
+
+func (w *worker) stop() {
+	w.ctl <- signalStop
+}
+
+func (w *worker) dequeue(stream stream) {
 	for {
 		select {
-		case cmd := <-ctl:
+		case cmd := <-w.ctl:
 			w.lastTS = time.Now()
 			switch cmd {
 			case signalInit:
