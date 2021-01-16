@@ -12,37 +12,48 @@ type signal uint
 
 const (
 	statusIdle   status = 0
-	statusActive        = 1
-	statusStop          = 2
+	statusActive status = 1
 
-	signalInit  signal = 0
-	signalSleep        = 1
-	signalStop         = 2
+	signalInit signal = 0
+	signalStop signal = 1
 )
 
 type producer struct {
 	idx    uint32
+	ctl    chan signal
 	status status
 }
 
-func (p *producer) produce(q *queue.Queue, ctl chan signal) {
+func makeProducer(idx uint32) *producer {
+	p := &producer{
+		idx:    idx,
+		ctl:    make(chan signal, 1),
+		status: statusIdle,
+	}
+	return p
+}
+
+func (p *producer) start() {
+	p.ctl <- signalInit
+}
+
+func (p *producer) stop() {
+	p.ctl <- signalStop
+}
+
+func (p *producer) produce(q *queue.Queue) {
 	for {
 		select {
-		case cmd := <-ctl:
+		case cmd := <-p.ctl:
 			switch cmd {
 			case signalInit:
 				p.status = statusActive
-			case signalSleep:
-				p.status = statusIdle
 			case signalStop:
-				p.status = statusStop
+				p.status = statusIdle
 				return
 			}
 		default:
 			if p.status == statusIdle {
-				continue
-			}
-			if p.status == statusStop {
 				break
 			}
 			x := struct {

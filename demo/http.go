@@ -109,8 +109,6 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			queue:        qi,
 			producersMin: req.ProducersMin,
 			producersMax: req.ProducersMax,
-			producers:    make([]producer, req.ProducersMax),
-			ctl:          make([]chan signal, req.ProducersMax),
 		}
 
 		h.mux.Lock()

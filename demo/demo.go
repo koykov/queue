@@ -15,18 +15,17 @@ type demoQueue struct {
 	producersMin,
 	producersMax,
 	producersUp uint32
-	producers []producer
-	ctl       []chan signal
+	producers []*producer
 }
 
 func (d *demoQueue) Run() {
+	d.producers = make([]*producer, d.producersMax)
 	for i := 0; i < int(d.producersMax); i++ {
-		d.ctl[i] = make(chan signal, 1)
+		d.producers[i] = makeProducer(uint32(i))
 	}
 	for i := 0; i < int(d.producersMin); i++ {
-		d.producers[i].idx = uint32(i)
-		go d.producers[i].produce(d.queue, d.ctl[i])
-		d.ctl[i] <- signalInit
+		go d.producers[i].produce(d.queue)
+		d.producers[i].start()
 	}
 	d.producersUp = d.producersMin
 
@@ -43,9 +42,8 @@ func (d *demoQueue) ProducerUp(delta uint32) error {
 	}
 	c := d.producersUp
 	for i := c; i < c+delta; i++ {
-		d.producers[i].idx = i
-		go d.producers[i].produce(d.queue, d.ctl[i])
-		d.ctl[i] <- signalInit
+		go d.producers[i].produce(d.queue)
+		d.producers[i].start()
 		d.producersUp++
 		ProducerStartMetric(d.key)
 	}
@@ -62,7 +60,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 	c := d.producersUp
 	for i := c; i > c-delta; i-- {
 		if d.producers[i].status == statusActive {
-			d.ctl[i] <- signalStop
+			d.producers[i].stop()
 			d.producersUp--
 			ProducerStopMetric(d.key)
 		}
@@ -73,7 +71,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 func (d *demoQueue) Stop() {
 	c := d.producersUp
 	for i := c; i > 0; i-- {
-		d.ctl[i] <- signalStop
+		d.producers[i].stop()
 		d.producersUp--
 		ProducerStopMetric(d.key)
 	}
