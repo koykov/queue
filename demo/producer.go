@@ -41,6 +41,10 @@ func (p *producer) stop() {
 	p.ctl <- signalStop
 }
 
+func (p *producer) forceStop() {
+	p.status = statusIdle
+}
+
 func (p *producer) produce(q *queue.Queue) {
 	for {
 		select {
@@ -54,7 +58,7 @@ func (p *producer) produce(q *queue.Queue) {
 			}
 		default:
 			if p.status == statusIdle {
-				break
+				return
 			}
 			x := struct {
 				Header  uint32
