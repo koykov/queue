@@ -144,7 +144,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		q.once.Do(q.init)
 	}
 	if q.status == StatusClose {
-		//
+		return false
 	}
 
 	if q.flags.balanced {
@@ -172,6 +172,9 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 func (q *Queue) Close() {
 	q.status = StatusClose
+	for atomic.LoadInt64(&q.spinlock) > 0 {
+	}
+	close(q.stream)
 }
 
 func (q *Queue) rebalance() {

@@ -171,6 +171,11 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if q != nil {
 			q.Stop()
 		}
+
+		// h.mux.Lock()
+		// delete(h.pool, key)
+		// h.mux.Unlock()
+
 		w.WriteHeader(http.StatusOK)
 		if _, err = w.Write([]byte("ok")); err != nil {
 			log.Println("err", err)

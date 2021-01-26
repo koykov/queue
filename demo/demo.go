@@ -71,7 +71,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 func (d *demoQueue) Stop() {
 	c := d.producersUp
 	for i := uint32(0); i < c; i++ {
-		d.producers[i].forceStop()
+		d.producers[i].stop()
 		d.producersUp--
 		ProducerStopMetric(d.key)
 	}
