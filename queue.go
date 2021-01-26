@@ -172,8 +172,9 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 func (q *Queue) Close() {
 	q.status = StatusClose
-	for atomic.LoadInt64(&q.spinlock) > 0 {
+	for q.lcRate() > 0 {
 	}
+	time.Sleep(time.Millisecond * 500)
 	close(q.stream)
 }
 
