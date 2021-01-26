@@ -210,7 +210,7 @@ func (q *Queue) rebalance() {
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
 		i := q.workersUp - 1
-		if uint32(i) < q.config.WorkersMin {
+		if (uint32(i) < q.config.WorkersMin && q.status != StatusClose) || i < 0 {
 			return
 		}
 		atomic.AddInt32(&q.workersUp, -1)
