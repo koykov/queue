@@ -196,6 +196,12 @@ func (q *Queue) rebalance() {
 	rate := q.lcRate()
 	log.Println("rate", rate)
 	switch {
+	case rate == 0 && q.status == StatusClose:
+		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
+			if q.workers[i].status == wstatusSleep {
+				q.workers[i].stop()
+			}
+		}
 	case rate >= q.config.WakeupFactor:
 		i := q.workersUp
 		if uint32(i) == q.config.WorkersMax {
@@ -213,10 +219,10 @@ func (q *Queue) rebalance() {
 		if (uint32(i) < q.config.WorkersMin && q.status != StatusClose) || i < 0 {
 			return
 		}
-		atomic.AddInt32(&q.workersUp, -1)
+		wu := atomic.AddInt32(&q.workersUp, -1)
 		q.workers[i].sleep()
 
-		for i := q.workersUp; uint32(i) < q.config.WorkersMax; i++ {
+		for i := wu; uint32(i) < q.config.WorkersMax; i++ {
 			if q.workers[i].status == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
 				q.workers[i].stop()
 			}
