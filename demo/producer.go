@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/koykov/queue"
+	"github.com/koykov/blqueue"
 )
 
 type status uint
@@ -41,7 +41,7 @@ func (p *producer) stop() {
 	p.ctl <- signalStop
 }
 
-func (p *producer) produce(q *queue.Queue) {
+func (p *producer) produce(q *blqueue.Queue) {
 	for {
 		select {
 		case cmd := <-p.ctl:

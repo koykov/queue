@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/koykov/queue"
-	"github.com/koykov/queue/metrics/prometheus"
+	"github.com/koykov/blqueue"
+	"github.com/koykov/blqueue/metrics/prometheus"
 )
 
 type QueueHTTP struct {
@@ -75,7 +75,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var (
 			req  RequestInit
-			conf queue.Config
+			conf blqueue.Config
 		)
 
 		err = json.Unmarshal(body, &req)
@@ -98,11 +98,11 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		conf.MetricsKey = req.MetricsKey
 
 		conf.MetricsHandler = prometheus.NewMetricsWriter(conf.MetricsKey)
-		conf.Proc = queue.DummyProc
+		conf.Proc = blqueue.DummyProc
 		if req.AllowLeak {
-			conf.LeakyHandler = &queue.DummyLeak{}
+			conf.LeakyHandler = &blqueue.DummyLeak{}
 		}
-		qi := queue.New(conf)
+		qi := blqueue.New(conf)
 
 		q := demoQueue{
 			key:          key,

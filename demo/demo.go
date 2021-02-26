@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/koykov/queue"
+	"github.com/koykov/blqueue"
 )
 
 type demoQueue struct {
 	key   string
-	queue *queue.Queue
+	queue *blqueue.Queue
 
 	producersMin,
 	producersMax,

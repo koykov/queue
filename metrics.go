@@ -1,4 +1,4 @@
-package queue
+package blqueue
 
 type MetricsWriter interface {
 	WorkerSetup(active, sleep, stop uint)
