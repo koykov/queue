@@ -52,6 +52,10 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	switch {
+	case r.URL.Path == "/api/v1/ping":
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("pong"))
+
 	case r.URL.Path == "/api/v1/status" && q != nil:
 		w.WriteHeader(http.StatusOK)
 		if _, err = w.Write([]byte(q.String())); err != nil {
