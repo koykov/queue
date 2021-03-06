@@ -15,11 +15,27 @@ import (
 type QueueHTTP struct {
 	mux  sync.RWMutex
 	pool map[string]*demoQueue
+
+	allow400 map[string]bool
+	allow404 map[string]bool
+}
+
+type QueueResponse struct {
+	Status  int    `json:"status"`
+	Error   string `json:"error"`
+	Message string `json:"reponse"`
 }
 
 func NewQueueHTTP() *QueueHTTP {
 	h := &QueueHTTP{
 		pool: make(map[string]*demoQueue),
+		allow400: map[string]bool{
+			"/api/v1/ping": true,
+		},
+		allow404: map[string]bool{
+			"/api/v1/init": true,
+			"/api/v1/ping": true,
+		},
 	}
 	return h
 }
@@ -35,17 +51,25 @@ func (h *QueueHTTP) get(key string) *demoQueue {
 
 func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		key string
-		err error
-		q   *demoQueue
+		key  string
+		q    *demoQueue
+		resp QueueResponse
 	)
 
-	if key = r.FormValue("key"); len(key) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+	defer func() {
+		w.WriteHeader(resp.Status)
+		b, _ := json.Marshal(resp)
+		_, _ = w.Write(b)
+	}()
+
+	resp.Status = http.StatusOK
+
+	if key = r.FormValue("key"); len(key) == 0 && !h.allow400[r.URL.Path] {
+		resp.Status = http.StatusBadRequest
 		return
 	}
-	if q = h.get(key); q == nil && r.URL.Path != "/api/v1/init" {
-		w.WriteHeader(http.StatusNotFound)
+	if q = h.get(key); q == nil && !h.allow404[r.URL.Path] {
+		resp.Status = http.StatusNotFound
 		return
 	}
 
@@ -54,27 +78,22 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case r.URL.Path == "/api/v1/ping":
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("pong"))
+		resp.Message = "pong"
 
 	case r.URL.Path == "/api/v1/status" && q != nil:
-		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write([]byte(q.String())); err != nil {
-			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		resp.Message = q.String()
 
 	case r.URL.Path == "/api/v1/init":
 		if q != nil {
-			w.WriteHeader(http.StatusNotAcceptable)
+			resp.Status = http.StatusNotAcceptable
 			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Println("err", err)
-			w.WriteHeader(http.StatusBadRequest)
+			resp.Status = http.StatusBadRequest
+			resp.Error = err.Error()
 			return
 		}
 
@@ -86,7 +105,8 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(body, &req)
 		if err != nil {
 			log.Println("err", err)
-			w.WriteHeader(http.StatusBadRequest)
+			resp.Status = http.StatusBadRequest
+			resp.Error = err.Error()
 			return
 		}
 		if len(req.MetricsKey) == 0 {
@@ -122,11 +142,7 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		q.Run()
 
-		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write([]byte("ok")); err != nil {
-			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		resp.Message = "success"
 
 	case r.URL.Path == "/api/v1/producer-up" && q != nil:
 		var delta uint32
@@ -134,21 +150,19 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ud, err := strconv.ParseUint(d, 10, 32)
 			if err != nil {
 				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
+				resp.Status = http.StatusInternalServerError
+				resp.Error = err.Error()
 				return
 			}
 			delta = uint32(ud)
 		}
 		if err := q.ProducerUp(delta); err != nil {
 			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			resp.Status = http.StatusInternalServerError
+			resp.Error = err.Error()
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write([]byte("ok")); err != nil {
-			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		resp.Message = "success"
 
 	case r.URL.Path == "/api/v1/producer-down" && q != nil:
 		var delta uint32
@@ -156,21 +170,19 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ud, err := strconv.ParseUint(d, 10, 32)
 			if err != nil {
 				log.Println("err", err)
-				w.WriteHeader(http.StatusInternalServerError)
+				resp.Status = http.StatusInternalServerError
+				resp.Error = err.Error()
 				return
 			}
 			delta = uint32(ud)
 		}
 		if err := q.ProducerDown(delta); err != nil {
 			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			resp.Status = http.StatusInternalServerError
+			resp.Error = err.Error()
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write([]byte("ok")); err != nil {
-			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		resp.Message = "success"
 
 	case r.URL.Path == "/api/v1/stop":
 		if q != nil {
@@ -181,13 +193,9 @@ func (h *QueueHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// delete(h.pool, key)
 		// h.mux.Unlock()
 
-		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write([]byte("ok")); err != nil {
-			log.Println("err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		resp.Message = "success"
 	default:
-		w.WriteHeader(http.StatusNotFound)
+		resp.Status = http.StatusNotFound
 		return
 	}
 }
