@@ -21,9 +21,9 @@ type QueueHTTP struct {
 }
 
 type QueueResponse struct {
-	Status  int    `json:"status"`
-	Error   string `json:"error"`
-	Message string `json:"reponse"`
+	Status  int    `json:"status,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 func NewQueueHTTP() *QueueHTTP {
