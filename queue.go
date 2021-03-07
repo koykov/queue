@@ -191,7 +191,7 @@ func (q *Queue) rebalance() {
 	atomic.StoreUint32(&q.acqlock, 1)
 
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
-	q.spinlock = 0
+	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.lcRate()
 	log.Println("rate", rate)
