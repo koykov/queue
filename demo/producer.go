@@ -2,13 +2,14 @@ package main
 
 import (
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/koykov/blqueue"
 )
 
-type status uint
-type signal uint
+type status uint32
+type signal uint32
 
 const (
 	statusIdle   status = 0
@@ -47,13 +48,13 @@ func (p *producer) produce(q *blqueue.Queue) {
 		case cmd := <-p.ctl:
 			switch cmd {
 			case signalInit:
-				p.status = statusActive
+				p.setStatus(statusActive)
 			case signalStop:
-				p.status = statusIdle
+				p.setStatus(statusIdle)
 				return
 			}
 		default:
-			if p.status == statusIdle {
+			if p.getStatus() == statusIdle {
 				return
 			}
 			x := struct {
@@ -64,4 +65,12 @@ func (p *producer) produce(q *blqueue.Queue) {
 			q.Enqueue(x)
 		}
 	}
+}
+
+func (p *producer) setStatus(status status) {
+	atomic.StoreUint32((*uint32)(&p.status), uint32(status))
+}
+
+func (p *producer) getStatus() status {
+	return status(atomic.LoadUint32((*uint32)(&p.status)))
 }

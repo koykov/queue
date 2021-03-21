@@ -59,7 +59,7 @@ func (d *demoQueue) ProducerDown(delta uint32) error {
 	}
 	c := d.producersUp
 	for i := c; i >= c-delta; i-- {
-		if d.producers[i].status == statusActive {
+		if d.producers[i].getStatus() == statusActive {
 			d.producers[i].stop()
 			d.producersUp--
 			ProducerStopMetric(d.key)
@@ -91,7 +91,7 @@ func (d *demoQueue) String() string {
 	out.ProducersMin = int(d.producersMin)
 	out.ProducersMax = int(d.producersMax)
 	for _, p := range d.producers {
-		switch p.status {
+		switch p.getStatus() {
 		case statusIdle:
 			out.ProducersIdle++
 		case statusActive:
