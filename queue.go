@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Status uint
+type Status uint32
 
 const (
 	StatusNil Status = iota
@@ -136,7 +136,7 @@ func (q *Queue) init() {
 		}()
 	}
 
-	q.status = StatusActive
+	q.setStatus(StatusActive)
 }
 
 func (q *Queue) Enqueue(x interface{}) bool {
@@ -196,9 +196,9 @@ func (q *Queue) rebalance() {
 	rate := q.lcRate()
 	log.Println("rate", rate)
 	switch {
-	case rate == 0 && q.status == StatusClose:
+	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].status == wstatusSleep {
+			if q.workers[i].getStatus() == wstatusSleep {
 				q.workers[i].stop()
 			}
 		}
@@ -207,7 +207,7 @@ func (q *Queue) rebalance() {
 		if uint32(i) == q.config.WorkersMax {
 			return
 		}
-		if q.workers[i].status == wstatusIdle {
+		if q.workers[i].getStatus() == wstatusIdle {
 			go q.workers[i].dequeue(q.stream)
 			q.workers[i].init()
 		} else {
@@ -215,15 +215,15 @@ func (q *Queue) rebalance() {
 		}
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
-		i := q.workersUp - 1
-		if (uint32(i) < q.config.WorkersMin && q.status != StatusClose) || i < 0 {
+		i := q.getWorkersUp() - 1
+		if (i < q.config.WorkersMin && q.getStatus() != StatusClose) || i < 0 {
 			return
 		}
 		wu := atomic.AddInt32(&q.workersUp, -1)
 		q.workers[i].sleep()
 
 		for i := wu; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].status == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
+			if q.workers[i].getStatus() == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
 				q.workers[i].stop()
 			}
 		}
@@ -236,6 +236,18 @@ func (q *Queue) rebalance() {
 
 func (q *Queue) lcRate() float32 {
 	return float32(len(q.stream)) / float32(cap(q.stream))
+}
+
+func (q *Queue) getWorkersUp() uint32 {
+	return uint32(atomic.LoadInt32(&q.workersUp))
+}
+
+func (q *Queue) setStatus(status Status) {
+	atomic.StoreUint32((*uint32)(&q.status), uint32(status))
+}
+
+func (q *Queue) getStatus() Status {
+	return Status(atomic.LoadUint32((*uint32)(&q.status)))
 }
 
 func (q *Queue) String() string {
@@ -278,12 +290,12 @@ func (q *Queue) String() string {
 		if w == nil {
 			out.WorkersIdle++
 		} else {
-			switch w.status {
+			switch w.getStatus() {
 			case wstatusIdle:
 				out.WorkersIdle++
 			case wstatusActive:
 				out.WorkersActive++
-			case w.status:
+			default:
 				out.WorkersSleep++
 			}
 		}

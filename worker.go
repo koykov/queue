@@ -2,11 +2,12 @@ package blqueue
 
 import (
 	"log"
+	"sync/atomic"
 	"time"
 )
 
-type wstatus uint
-type signal uint
+type wstatus uint32
+type signal uint32
 
 const (
 	wstatusIdle wstatus = iota
@@ -65,19 +66,19 @@ func (w *worker) dequeue(stream stream) {
 			switch cmd {
 			case signalInit:
 				log.Printf("init #%d\n", w.idx)
-				w.status = wstatusActive
+				w.setStatus(wstatusActive)
 				w.metrics.WorkerInit(w.idx)
 			case signalSleep:
 				log.Printf("sleep #%d\n", w.idx)
-				w.status = wstatusSleep
+				w.setStatus(wstatusSleep)
 				w.metrics.WorkerSleep(w.idx)
 			case signalWakeup:
 				log.Printf("resume #%d\n", w.idx)
-				w.status = wstatusActive
+				w.setStatus(wstatusActive)
 				w.metrics.WorkerWakeup(w.idx)
 			case signalStop:
 				log.Printf("stop #%d\n", w.idx)
-				w.status = wstatusIdle
+				w.setStatus(wstatusIdle)
 				w.metrics.WorkerStop(w.idx)
 				return
 			}
@@ -88,4 +89,12 @@ func (w *worker) dequeue(stream stream) {
 			}
 		}
 	}
+}
+
+func (w *worker) setStatus(status wstatus) {
+	atomic.StoreUint32((*uint32)(&w.status), uint32(status))
+}
+
+func (w *worker) getStatus() wstatus {
+	return wstatus(atomic.LoadUint32((*uint32)(&w.status)))
 }
