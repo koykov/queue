@@ -27,7 +27,9 @@
 
         let addr = jQuery("#addr").val() + '/api/v1/';
         app.setApiUrl(addr);
-        app.ping();
+        if (app.ping() === 200) {
+            document.location = 'choose.html';
+        }
     });
 </script>
 </body>
