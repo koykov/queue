@@ -41,6 +41,7 @@ type Queue struct {
 	workersUp int32
 	acqlock   uint32
 	spinlock  int64
+	enqlock   int64
 
 	Err error
 }
@@ -147,6 +148,9 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		return false
 	}
 
+	atomic.AddInt64(&q.enqlock, 1)
+	defer atomic.AddInt64(&q.enqlock, -1)
+
 	if q.flags.balanced {
 		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
 			q.rebalance()
@@ -172,9 +176,8 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 func (q *Queue) Close() {
 	q.status = StatusClose
-	for q.lcRate() > 0 {
+	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
-	time.Sleep(time.Millisecond * 500)
 	close(q.stream)
 }
 
@@ -194,11 +197,11 @@ func (q *Queue) rebalance() {
 	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	log.Println("rate", rate)
+	log.Println("rate", rate, "status", q.status)
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].getStatus() == wstatusSleep {
+			if q.workers[i].getStatus() == wstatusActive || q.workers[i].getStatus() == wstatusSleep {
 				q.workers[i].stop()
 			}
 		}
@@ -283,6 +286,8 @@ func (q *Queue) String() string {
 		out.Status = "active"
 	case StatusThrottle:
 		out.Status = "throttle"
+	case StatusClose:
+		out.Status = "close"
 	}
 	out.FullnessRate = q.lcRate()
 
