@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/koykov/bitset"
 )
 
 type Status uint32
@@ -18,16 +20,15 @@ const (
 	StatusClose
 
 	spinlockLimit = 1000
-)
 
-type flags struct {
-	balanced, leaky bool
-}
+	flagBalanced = 0
+	flagLeaky    = 1
+)
 
 type stream chan interface{}
 
 type Queue struct {
-	flags  flags
+	bitset.Bitset
 	config Config
 
 	status Status
@@ -105,8 +106,8 @@ func (q *Queue) init() {
 
 	q.stream = make(stream, c.Size)
 
-	q.flags.balanced = c.WorkersMin < c.WorkersMax
-	q.flags.leaky = c.LeakyHandler != nil
+	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax)
+	q.SetBit(flagLeaky, c.LeakyHandler != nil)
 
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
@@ -125,7 +126,7 @@ func (q *Queue) init() {
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat
 	}
-	if q.flags.balanced {
+	if q.CheckBit(flagBalanced) {
 		tickerHB := time.NewTicker(c.Heartbeat)
 		go func() {
 			for {
@@ -151,13 +152,13 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	atomic.AddInt64(&q.enqlock, 1)
 	defer atomic.AddInt64(&q.enqlock, -1)
 
-	if q.flags.balanced {
+	if q.CheckBit(flagBalanced) {
 		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
 			q.rebalance()
 		}
 	}
 	q.config.MetricsHandler.QueuePut()
-	if q.flags.leaky {
+	if q.CheckBit(flagLeaky) {
 		select {
 		case q.stream <- x:
 			atomic.AddInt64(&q.spinlock, -1)
