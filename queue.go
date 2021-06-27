@@ -19,7 +19,8 @@ const (
 	StatusThrottle
 	StatusClose
 
-	spinlockLimit = 1000
+	spinlockLimit  = 1000
+	idleCountLimit = 10
 
 	flagBalanced = 0
 	flagLeaky    = 1
@@ -129,10 +130,19 @@ func (q *Queue) init() {
 	if q.CheckBit(flagBalanced) {
 		tickerHB := time.NewTicker(c.Heartbeat)
 		go func() {
+			idleC := 0
 			for {
 				select {
 				case <-tickerHB.C:
 					q.rebalance()
+					if q.lcRate() == 0 && q.getStatus() == StatusClose {
+						idleC++
+					} else {
+						idleC = 0
+					}
+					if idleC > idleCountLimit {
+						return
+					}
 				}
 			}
 		}()
