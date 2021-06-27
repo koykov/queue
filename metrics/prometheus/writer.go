@@ -85,6 +85,11 @@ func (m *Prometheus) WorkerStop(_ uint32) {
 	workerSleep.WithLabelValues(m.queue).Add(-1)
 }
 
+func (m *Prometheus) WorkerForceStop(_ uint32) {
+	workerIdle.WithLabelValues(m.queue).Inc()
+	workerActive.WithLabelValues(m.queue).Add(-1)
+}
+
 func (m *Prometheus) QueuePut() {
 	queueIn.WithLabelValues(m.queue).Inc()
 	queueSize.WithLabelValues(m.queue).Inc()
@@ -98,4 +103,8 @@ func (m *Prometheus) QueuePull() {
 func (m *Prometheus) QueueLeak() {
 	queueLeak.WithLabelValues(m.queue).Inc()
 	queueSize.WithLabelValues(m.queue).Dec()
+}
+
+func (m *Prometheus) QueueClose() {
+	queueSize.WithLabelValues(m.queue).Set(0)
 }

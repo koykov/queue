@@ -31,6 +31,10 @@ func (m *Log) WorkerStop(idx uint32) {
 	log.Printf("queue %s: worker %d caught stop signal\n", m.queue, idx)
 }
 
+func (m *Log) WorkerForceStop(idx uint32) {
+	log.Printf("queue %s: worker %d caught force stop signal\n", m.queue, idx)
+}
+
 func (m *Log) QueuePut() {
 	log.Printf("queue %s: new item come to the queue\n", m.queue)
 }
@@ -41,4 +45,8 @@ func (m *Log) QueuePull() {
 
 func (m *Log) QueueLeak() {
 	log.Printf("queue %s: queue leak\n", m.queue)
+}
+
+func (m *Log) QueueClose() {
+	log.Printf("queue %s: queue close\n", m.queue)
 }

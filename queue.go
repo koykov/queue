@@ -190,6 +190,7 @@ func (q *Queue) Close() {
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	close(q.stream)
+	q.config.MetricsHandler.QueueClose()
 }
 
 func (q *Queue) rebalance() {
@@ -213,7 +214,7 @@ func (q *Queue) rebalance() {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
 			if q.workers[i].getStatus() == wstatusActive || q.workers[i].getStatus() == wstatusSleep {
-				q.workers[i].stop()
+				q.workers[i].stop(true)
 			}
 		}
 	case rate >= q.config.WakeupFactor:
@@ -238,7 +239,7 @@ func (q *Queue) rebalance() {
 
 		for i := wu; uint32(i) < q.config.WorkersMax; i++ {
 			if q.workers[i].getStatus() == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
-				q.workers[i].stop()
+				q.workers[i].stop(false)
 			}
 		}
 	case rate == 1:

@@ -18,6 +18,7 @@ const (
 	signalSleep
 	signalWakeup
 	signalStop
+	signalForceStop
 )
 
 type ctl chan signal
@@ -54,8 +55,12 @@ func (w *worker) wakeup() {
 	w.ctl <- signalWakeup
 }
 
-func (w *worker) stop() {
-	w.ctl <- signalStop
+func (w *worker) stop(force bool) {
+	sig := signalStop
+	if force {
+		sig = signalForceStop
+	}
+	w.ctl <- sig
 }
 
 func (w *worker) dequeue(stream stream) {
@@ -76,10 +81,14 @@ func (w *worker) dequeue(stream stream) {
 				log.Printf("resume #%d\n", w.idx)
 				w.setStatus(wstatusActive)
 				w.metrics.WorkerWakeup(w.idx)
-			case signalStop:
+			case signalStop, signalForceStop:
 				log.Printf("stop #%d\n", w.idx)
 				w.setStatus(wstatusIdle)
-				w.metrics.WorkerStop(w.idx)
+				if cmd == signalForceStop {
+					w.metrics.WorkerForceStop(w.idx)
+				} else {
+					w.metrics.WorkerStop(w.idx)
+				}
 				return
 			}
 		default:

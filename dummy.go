@@ -14,11 +14,15 @@ func (m *DummyMetrics) WorkerWakeup(_ uint32) {}
 
 func (m *DummyMetrics) WorkerStop(_ uint32) {}
 
+func (m *DummyMetrics) WorkerForceStop(_ uint32) {}
+
 func (m *DummyMetrics) QueuePut() {}
 
 func (m *DummyMetrics) QueuePull() {}
 
 func (m *DummyMetrics) QueueLeak() {}
+
+func (m *DummyMetrics) QueueClose() {}
 
 func DummyProc(x interface{}) {
 	_ = x
