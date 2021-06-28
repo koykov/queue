@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-type wstatus uint32
+type WorkerStatus uint32
 type signal uint32
 
 const (
-	wstatusIdle wstatus = iota
-	wstatusActive
-	wstatusSleep
+	WorkerStatusIdle WorkerStatus = iota
+	WorkerStatusActive
+	WorkerStatusSleep
 
 	signalInit signal = iota
 	signalSleep
@@ -25,7 +25,7 @@ type ctl chan signal
 
 type worker struct {
 	idx     uint32
-	status  wstatus
+	status  WorkerStatus
 	ctl     ctl
 	lastTS  time.Time
 	proc    Proc
@@ -35,7 +35,7 @@ type worker struct {
 func makeWorker(idx uint32, proc Proc, metrics MetricsWriter) *worker {
 	w := &worker{
 		idx:     idx,
-		status:  wstatusIdle,
+		status:  WorkerStatusIdle,
 		ctl:     make(ctl, 1),
 		proc:    proc,
 		metrics: metrics,
@@ -71,28 +71,24 @@ func (w *worker) dequeue(stream stream) {
 			switch cmd {
 			case signalInit:
 				log.Printf("init #%d\n", w.idx)
-				w.setStatus(wstatusActive)
+				w.setStatus(WorkerStatusActive)
 				w.metrics.WorkerInit(w.idx)
 			case signalSleep:
 				log.Printf("sleep #%d\n", w.idx)
-				w.setStatus(wstatusSleep)
+				w.setStatus(WorkerStatusSleep)
 				w.metrics.WorkerSleep(w.idx)
 			case signalWakeup:
 				log.Printf("resume #%d\n", w.idx)
-				w.setStatus(wstatusActive)
+				w.setStatus(WorkerStatusActive)
 				w.metrics.WorkerWakeup(w.idx)
 			case signalStop, signalForceStop:
 				log.Printf("stop #%d\n", w.idx)
-				w.setStatus(wstatusIdle)
-				if cmd == signalForceStop {
-					w.metrics.WorkerForceStop(w.idx)
-				} else {
-					w.metrics.WorkerStop(w.idx)
-				}
+				w.metrics.WorkerStop(w.idx, cmd == signalForceStop, w.getStatus())
+				w.setStatus(WorkerStatusIdle)
 				return
 			}
 		default:
-			if w.status == wstatusActive {
+			if w.status == WorkerStatusActive {
 				w.proc(<-stream)
 				w.metrics.QueuePull()
 			}
@@ -100,10 +96,10 @@ func (w *worker) dequeue(stream stream) {
 	}
 }
 
-func (w *worker) setStatus(status wstatus) {
+func (w *worker) setStatus(status WorkerStatus) {
 	atomic.StoreUint32((*uint32)(&w.status), uint32(status))
 }
 
-func (w *worker) getStatus() wstatus {
-	return wstatus(atomic.LoadUint32((*uint32)(&w.status)))
+func (w *worker) getStatus() WorkerStatus {
+	return WorkerStatus(atomic.LoadUint32((*uint32)(&w.status)))
 }

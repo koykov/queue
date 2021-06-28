@@ -1,6 +1,10 @@
 package log
 
-import "log"
+import (
+	"log"
+
+	"github.com/koykov/blqueue"
+)
 
 type Log struct {
 	queue string
@@ -27,12 +31,12 @@ func (m *Log) WorkerWakeup(idx uint32) {
 	log.Printf("queue %s: worker %d caught wakeup signal\n", m.queue, idx)
 }
 
-func (m *Log) WorkerStop(idx uint32) {
-	log.Printf("queue %s: worker %d caught stop signal\n", m.queue, idx)
-}
-
-func (m *Log) WorkerForceStop(idx uint32) {
-	log.Printf("queue %s: worker %d caught force stop signal\n", m.queue, idx)
+func (m *Log) WorkerStop(idx uint32, force bool, status blqueue.WorkerStatus) {
+	if force {
+		log.Printf("queue %s: worker %d caught force stop signal (current status %d)\n", m.queue, idx, status)
+	} else {
+		log.Printf("queue %s: worker %d caught stop signal\n", m.queue, idx)
+	}
 }
 
 func (m *Log) QueuePut() {

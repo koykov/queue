@@ -2,6 +2,8 @@ package prometheus
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/koykov/blqueue"
 )
 
 type Prometheus struct {
@@ -80,14 +82,18 @@ func (m *Prometheus) WorkerWakeup(_ uint32) {
 	workerSleep.WithLabelValues(m.queue).Add(-1)
 }
 
-func (m *Prometheus) WorkerStop(_ uint32) {
+func (m *Prometheus) WorkerStop(_ uint32, force bool, status blqueue.WorkerStatus) {
 	workerIdle.WithLabelValues(m.queue).Inc()
-	workerSleep.WithLabelValues(m.queue).Add(-1)
-}
-
-func (m *Prometheus) WorkerForceStop(_ uint32) {
-	workerIdle.WithLabelValues(m.queue).Inc()
-	workerActive.WithLabelValues(m.queue).Add(-1)
+	if force {
+		switch status {
+		case blqueue.WorkerStatusActive:
+			workerActive.WithLabelValues(m.queue).Add(-1)
+		case blqueue.WorkerStatusSleep:
+			workerSleep.WithLabelValues(m.queue).Add(-1)
+		}
+	} else {
+		workerSleep.WithLabelValues(m.queue).Add(-1)
+	}
 }
 
 func (m *Prometheus) QueuePut() {

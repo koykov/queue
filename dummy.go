@@ -12,9 +12,7 @@ func (m *DummyMetrics) WorkerSleep(_ uint32) {}
 
 func (m *DummyMetrics) WorkerWakeup(_ uint32) {}
 
-func (m *DummyMetrics) WorkerStop(_ uint32) {}
-
-func (m *DummyMetrics) WorkerForceStop(_ uint32) {}
+func (m *DummyMetrics) WorkerStop(_ uint32, _ bool, _ WorkerStatus) {}
 
 func (m *DummyMetrics) QueuePut() {}
 

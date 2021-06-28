@@ -213,7 +213,7 @@ func (q *Queue) rebalance() {
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].getStatus() == wstatusActive || q.workers[i].getStatus() == wstatusSleep {
+			if q.workers[i].getStatus() == WorkerStatusActive || q.workers[i].getStatus() == WorkerStatusSleep {
 				q.workers[i].stop(true)
 			}
 		}
@@ -222,7 +222,7 @@ func (q *Queue) rebalance() {
 		if uint32(i) == q.config.WorkersMax {
 			return
 		}
-		if q.workers[i].getStatus() == wstatusIdle {
+		if q.workers[i].getStatus() == WorkerStatusIdle {
 			go q.workers[i].dequeue(q.stream)
 			q.workers[i].init()
 		} else {
@@ -238,7 +238,7 @@ func (q *Queue) rebalance() {
 		q.workers[i].sleep()
 
 		for i := wu; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].getStatus() == wstatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
+			if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
 				q.workers[i].stop(false)
 			}
 		}
@@ -308,9 +308,9 @@ func (q *Queue) String() string {
 			out.WorkersIdle++
 		} else {
 			switch w.getStatus() {
-			case wstatusIdle:
+			case WorkerStatusIdle:
 				out.WorkersIdle++
-			case wstatusActive:
+			case WorkerStatusActive:
 				out.WorkersActive++
 			default:
 				out.WorkersSleep++
