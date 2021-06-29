@@ -140,7 +140,7 @@ func (q *Queue) init() {
 			for {
 				select {
 				case <-tickerHB.C:
-					q.rebalance()
+					q.rebalance(false)
 					if q.lcRate() == 0 && q.getStatus() == StatusClose {
 						idleC++
 					} else {
@@ -170,7 +170,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 	if q.CheckBit(flagBalanced) {
 		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
-			q.rebalance()
+			q.rebalance(true)
 		}
 	}
 	q.config.MetricsHandler.QueuePut()
@@ -199,7 +199,7 @@ func (q *Queue) Close() {
 	q.config.MetricsHandler.QueueClose()
 }
 
-func (q *Queue) rebalance() {
+func (q *Queue) rebalance(force bool) {
 	q.mux.Lock()
 	defer func() {
 		atomic.StoreUint32(&q.acqlock, 0)
@@ -215,7 +215,9 @@ func (q *Queue) rebalance() {
 	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	if q.config.Verbose(VerboseInfo) {
+	if force && q.config.Verbose(VerboseWarn) {
+		q.config.Logger.Printf("force rebalance on rate %f", rate)
+	} else if q.config.Verbose(VerboseInfo) {
 		q.config.Logger.Printf("rebalance on rate %f", rate)
 	}
 	switch {
