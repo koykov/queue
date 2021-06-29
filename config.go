@@ -1,13 +1,22 @@
 package blqueue
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	defaultWakeupFactor = .75
 	defaultSleepFactor  = .5
 	defaultHeartbeat    = time.Second
 	defaultSleepTimeout = time.Second * 5
+
+	VerboseNone VerbosityLevel = iota
+	VerboseInfo
+	VerboseWarn
+	VerboseError
 )
+
+type VerbosityLevel uint
 
 type Config struct {
 	Size      uint64 `json:"size"`
@@ -25,4 +34,11 @@ type Config struct {
 
 	MetricsKey     string `json:"metrics_key"`
 	MetricsHandler MetricsWriter
+
+	Logger         Logger
+	VerbosityLevel VerbosityLevel
+}
+
+func (c *Config) Verbose(level VerbosityLevel) bool {
+	return c.VerbosityLevel&level != 0
 }

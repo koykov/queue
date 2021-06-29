@@ -1,7 +1,6 @@
 package blqueue
 
 import (
-	"log"
 	"sync/atomic"
 	"time"
 )
@@ -24,21 +23,21 @@ const (
 type ctl chan signal
 
 type worker struct {
-	idx     uint32
-	status  WorkerStatus
-	ctl     ctl
-	lastTS  time.Time
-	proc    Proc
-	metrics MetricsWriter
+	idx    uint32
+	status WorkerStatus
+	ctl    ctl
+	lastTS time.Time
+	proc   Proc
+	config *Config
 }
 
-func makeWorker(idx uint32, proc Proc, metrics MetricsWriter) *worker {
+func makeWorker(idx uint32, config *Config) *worker {
 	w := &worker{
-		idx:     idx,
-		status:  WorkerStatusIdle,
-		ctl:     make(ctl, 1),
-		proc:    proc,
-		metrics: metrics,
+		idx:    idx,
+		status: WorkerStatusIdle,
+		ctl:    make(ctl, 1),
+		proc:   config.Proc,
+		config: config,
 	}
 	return w
 }
@@ -70,27 +69,35 @@ func (w *worker) dequeue(stream stream) {
 			w.lastTS = time.Now()
 			switch cmd {
 			case signalInit:
-				log.Printf("init #%d\n", w.idx)
+				if w.c().Verbose(VerboseInfo) {
+					w.l().Printf("worker #%d init\n", w.idx)
+				}
 				w.setStatus(WorkerStatusActive)
-				w.metrics.WorkerInit(w.idx)
+				w.m().WorkerInit(w.idx)
 			case signalSleep:
-				log.Printf("sleep #%d\n", w.idx)
+				if w.c().Verbose(VerboseInfo) {
+					w.l().Printf("worker #%d sleep\n", w.idx)
+				}
 				w.setStatus(WorkerStatusSleep)
-				w.metrics.WorkerSleep(w.idx)
+				w.m().WorkerSleep(w.idx)
 			case signalWakeup:
-				log.Printf("resume #%d\n", w.idx)
+				if w.c().Verbose(VerboseInfo) {
+					w.l().Printf("worker #%d wakeup\n", w.idx)
+				}
 				w.setStatus(WorkerStatusActive)
-				w.metrics.WorkerWakeup(w.idx)
+				w.m().WorkerWakeup(w.idx)
 			case signalStop, signalForceStop:
-				log.Printf("stop #%d\n", w.idx)
-				w.metrics.WorkerStop(w.idx, cmd == signalForceStop, w.getStatus())
+				if w.c().Verbose(VerboseInfo) {
+					w.l().Printf("worker #%d stop\n", w.idx)
+				}
+				w.m().WorkerStop(w.idx, cmd == signalForceStop, w.getStatus())
 				w.setStatus(WorkerStatusIdle)
 				return
 			}
 		default:
 			if w.status == WorkerStatusActive {
 				w.proc(<-stream)
-				w.metrics.QueuePull()
+				w.m().QueuePull()
 			}
 		}
 	}
@@ -102,4 +109,16 @@ func (w *worker) setStatus(status WorkerStatus) {
 
 func (w *worker) getStatus() WorkerStatus {
 	return WorkerStatus(atomic.LoadUint32((*uint32)(&w.status)))
+}
+
+func (w *worker) c() *Config {
+	return w.config
+}
+
+func (w *worker) m() MetricsWriter {
+	return w.config.MetricsHandler
+}
+
+func (w *worker) l() Logger {
+	return w.config.Logger
 }

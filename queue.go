@@ -2,7 +2,6 @@ package blqueue
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -80,6 +79,13 @@ func (q *Queue) init() {
 		c.MetricsHandler = &DummyMetrics{}
 	}
 
+	if c.Logger == nil {
+		c.Logger = &DummyLog{}
+	}
+	if c.VerbosityLevel == 0 {
+		c.VerbosityLevel = VerboseNone
+	}
+
 	if c.Workers > 0 && c.WorkersMin == 0 {
 		c.WorkersMin = c.Workers
 	}
@@ -114,7 +120,7 @@ func (q *Queue) init() {
 	var i uint32
 	for i = 0; i < c.WorkersMax; i++ {
 		c.MetricsHandler.WorkerSleep(i)
-		q.workers[i] = makeWorker(i, c.Proc, c.MetricsHandler)
+		q.workers[i] = makeWorker(i, c)
 	}
 	c.MetricsHandler.WorkerSetup(0, 0, uint(c.WorkersMax))
 
@@ -209,7 +215,9 @@ func (q *Queue) rebalance() {
 	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	log.Println("rate", rate, "status", q.status)
+	if q.config.Verbose(VerboseInfo) {
+		q.config.Logger.Printf("rebalance on rate %f", rate)
+	}
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.config.WorkersMax; i++ {

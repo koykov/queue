@@ -4,31 +4,32 @@ import "time"
 
 type DummyMetrics struct{}
 
-func (m *DummyMetrics) WorkerSetup(_, _, _ uint) {}
+func (*DummyMetrics) WorkerSetup(_, _, _ uint)                    {}
+func (*DummyMetrics) WorkerInit(_ uint32)                         {}
+func (*DummyMetrics) WorkerSleep(_ uint32)                        {}
+func (*DummyMetrics) WorkerWakeup(_ uint32)                       {}
+func (*DummyMetrics) WorkerStop(_ uint32, _ bool, _ WorkerStatus) {}
+func (*DummyMetrics) QueuePut()                                   {}
+func (*DummyMetrics) QueuePull()                                  {}
+func (*DummyMetrics) QueueLeak()                                  {}
+func (*DummyMetrics) QueueClose()                                 {}
 
-func (m *DummyMetrics) WorkerInit(_ uint32) {}
+type DummyLeak struct{}
 
-func (m *DummyMetrics) WorkerSleep(_ uint32) {}
+func (*DummyLeak) Catch(x interface{}) {
+	_ = x
+}
 
-func (m *DummyMetrics) WorkerWakeup(_ uint32) {}
+type DummyLog struct{}
 
-func (m *DummyMetrics) WorkerStop(_ uint32, _ bool, _ WorkerStatus) {}
-
-func (m *DummyMetrics) QueuePut() {}
-
-func (m *DummyMetrics) QueuePull() {}
-
-func (m *DummyMetrics) QueueLeak() {}
-
-func (m *DummyMetrics) QueueClose() {}
+func (*DummyLog) Printf(string, ...interface{}) {}
+func (*DummyLog) Print(...interface{})          {}
+func (*DummyLog) Println(...interface{})        {}
+func (*DummyLog) Fatal(...interface{})          {}
+func (*DummyLog) Fatalf(string, ...interface{}) {}
+func (*DummyLog) Fatalln(...interface{})        {}
 
 func DummyProc(x interface{}) {
 	_ = x
 	time.Sleep(time.Nanosecond * 75)
-}
-
-type DummyLeak struct{}
-
-func (l *DummyLeak) Catch(x interface{}) {
-	_ = x
 }
