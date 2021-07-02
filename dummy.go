@@ -23,5 +23,3 @@ func (*DummyLog) Println(...interface{})        {}
 func (*DummyLog) Fatal(...interface{})          {}
 func (*DummyLog) Fatalf(string, ...interface{}) {}
 func (*DummyLog) Fatalln(...interface{})        {}
-
-func DummyProc(_ interface{}) {}
