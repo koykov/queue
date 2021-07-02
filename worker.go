@@ -96,8 +96,10 @@ func (w *worker) dequeue(stream stream) {
 			}
 		default:
 			if w.status == WorkerStatusActive {
-				w.proc(<-stream)
-				w.m().QueuePull()
+				if x, ok := <-stream; ok {
+					w.proc(x)
+					w.m().QueuePull()
+				}
 			}
 		}
 	}
