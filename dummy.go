@@ -1,7 +1,5 @@
 package blqueue
 
-import "time"
-
 type DummyMetrics struct{}
 
 func (*DummyMetrics) WorkerSetup(_, _, _ uint)                    {}
@@ -15,9 +13,7 @@ func (*DummyMetrics) QueueLeak()                                  {}
 
 type DummyLeak struct{}
 
-func (*DummyLeak) Catch(x interface{}) {
-	_ = x
-}
+func (*DummyLeak) Catch(_ interface{}) {}
 
 type DummyLog struct{}
 
@@ -28,7 +24,4 @@ func (*DummyLog) Fatal(...interface{})          {}
 func (*DummyLog) Fatalf(string, ...interface{}) {}
 func (*DummyLog) Fatalln(...interface{})        {}
 
-func DummyProc(x interface{}) {
-	_ = x
-	time.Sleep(time.Nanosecond * 75)
-}
+func DummyProc(_ interface{}) {}
