@@ -110,7 +110,3 @@ func (m *Prometheus) QueueLeak() {
 	queueLeak.WithLabelValues(m.queue).Inc()
 	queueSize.WithLabelValues(m.queue).Dec()
 }
-
-func (m *Prometheus) QueueClose() {
-	queueSize.WithLabelValues(m.queue).Set(0)
-}

@@ -12,7 +12,6 @@ func (*DummyMetrics) WorkerStop(_ uint32, _ bool, _ WorkerStatus) {}
 func (*DummyMetrics) QueuePut()                                   {}
 func (*DummyMetrics) QueuePull()                                  {}
 func (*DummyMetrics) QueueLeak()                                  {}
-func (*DummyMetrics) QueueClose()                                 {}
 
 type DummyLeak struct{}
 

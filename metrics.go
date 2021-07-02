@@ -9,5 +9,4 @@ type MetricsWriter interface {
 	QueuePut()
 	QueuePull()
 	QueueLeak()
-	QueueClose()
 }

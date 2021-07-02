@@ -196,7 +196,6 @@ func (q *Queue) Close() {
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	close(q.stream)
-	q.config.MetricsHandler.QueueClose()
 }
 
 func (q *Queue) rebalance(force bool) {

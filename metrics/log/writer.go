@@ -50,7 +50,3 @@ func (m *Log) QueuePull() {
 func (m *Log) QueueLeak() {
 	log.Printf("queue %s: queue leak\n", m.queue)
 }
-
-func (m *Log) QueueClose() {
-	log.Printf("queue %s: queue close\n", m.queue)
-}
