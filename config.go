@@ -19,8 +19,7 @@ const (
 type VerbosityLevel uint
 
 type Config struct {
-	Size      uint64 `json:"size"`
-	Proc      Proc
+	Size      uint64        `json:"size"`
 	Workers   uint32        `json:"workers"`
 	Heartbeat time.Duration `json:"heartbeat"`
 
@@ -30,7 +29,8 @@ type Config struct {
 	SleepFactor  float32 `json:"sleep_factor"`
 	SleepTimeout time.Duration
 
-	LeakyHandler Leaker
+	DequeueHandler Dequeuer
+	LeakyHandler   Leaker
 
 	MetricsKey     string `json:"metrics_key"`
 	MetricsHandler MetricsWriter

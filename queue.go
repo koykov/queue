@@ -47,7 +47,9 @@ type Queue struct {
 	Err error
 }
 
-type Proc func(interface{})
+type Dequeuer interface {
+	Dequeue(interface{}) error
+}
 
 type Leaker interface {
 	Catch(x interface{})
@@ -69,8 +71,8 @@ func (q *Queue) init() {
 		q.status = StatusFail
 		return
 	}
-	if c.Proc == nil {
-		q.Err = ErrNoProc
+	if c.DequeueHandler == nil {
+		q.Err = ErrNoDequeue
 		q.status = StatusFail
 		return
 	}

@@ -27,7 +27,7 @@ type worker struct {
 	status WorkerStatus
 	ctl    ctl
 	lastTS time.Time
-	proc   Proc
+	proc   Dequeuer
 	config *Config
 }
 
@@ -36,7 +36,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		ctl:    make(ctl, 1),
-		proc:   config.Proc,
+		proc:   config.DequeueHandler,
 		config: config,
 	}
 	return w
@@ -97,7 +97,7 @@ func (w *worker) dequeue(stream stream) {
 		default:
 			if w.status == WorkerStatusActive {
 				if x, ok := <-stream; ok {
-					w.proc(x)
+					_ = w.proc.Dequeue(x)
 					w.m().QueuePull()
 				}
 			}
