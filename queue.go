@@ -48,7 +48,7 @@ type Queue struct {
 }
 
 type Dequeuer interface {
-	Dequeue(interface{}) error
+	Dequeue(x interface{}) error
 }
 
 type Leaker interface {
