@@ -160,10 +160,10 @@ func (q *Queue) init() {
 }
 
 func (q *Queue) Enqueue(x interface{}) bool {
-	if q.status == StatusNil {
+	if q.getStatus() == StatusNil {
 		q.once.Do(q.init)
 	}
-	if q.status == StatusClose {
+	if q.getStatus() == StatusClose {
 		return false
 	}
 
@@ -194,7 +194,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 }
 
 func (q *Queue) Close() {
-	q.status = StatusClose
+	q.setStatus(StatusClose)
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	close(q.stream)
@@ -254,9 +254,9 @@ func (q *Queue) rebalance(force bool) {
 			}
 		}
 	case rate == 1:
-		q.status = StatusThrottle
+		q.setStatus(StatusThrottle)
 	default:
-		q.status = StatusActive
+		q.setStatus(StatusActive)
 	}
 }
 
