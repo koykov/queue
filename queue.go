@@ -242,7 +242,7 @@ func (q *Queue) rebalance(force bool) {
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.config.SleepFactor:
 		i := q.getWorkersUp() - 1
-		if (i < q.config.WorkersMin && q.getStatus() != StatusClose) || i < 0 {
+		if (i < int32(q.config.WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
 			return
 		}
 		wu := atomic.AddInt32(&q.workersUp, -1)
@@ -264,8 +264,8 @@ func (q *Queue) lcRate() float32 {
 	return float32(len(q.stream)) / float32(cap(q.stream))
 }
 
-func (q *Queue) getWorkersUp() uint32 {
-	return uint32(atomic.LoadInt32(&q.workersUp))
+func (q *Queue) getWorkersUp() int32 {
+	return atomic.LoadInt32(&q.workersUp)
 }
 
 func (q *Queue) setStatus(status Status) {
