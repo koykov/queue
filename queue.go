@@ -121,10 +121,10 @@ func (q *Queue) init() {
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
 	for i = 0; i < c.WorkersMax; i++ {
-		c.MetricsHandler.WorkerSleep(i)
+		q.m().WorkerSleep(i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	c.MetricsHandler.WorkerSetup(0, 0, uint(c.WorkersMax))
+	q.m().WorkerSetup(0, 0, uint(c.WorkersMax))
 
 	for i = 0; i < c.WorkersMin; i++ {
 		go q.workers[i].dequeue(q.stream)
@@ -175,15 +175,15 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			q.rebalance(true)
 		}
 	}
-	q.config.MetricsHandler.QueuePut()
+	q.m().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		select {
 		case q.stream <- x:
 			atomic.AddInt64(&q.spinlock, -1)
 			return true
 		default:
-			q.config.LeakyHandler.Catch(x)
-			q.config.MetricsHandler.QueueLeak()
+			q.c().LeakyHandler.Catch(x)
+			q.m().QueueLeak()
 			return false
 		}
 	} else {
@@ -216,21 +216,21 @@ func (q *Queue) rebalance(force bool) {
 	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	if force && q.config.Verbose(VerboseWarn) {
-		q.config.Logger.Printf("force rebalance on rate %f", rate)
-	} else if q.config.Verbose(VerboseInfo) {
-		q.config.Logger.Printf("rebalance on rate %f", rate)
+	if force && q.c().Verbose(VerboseWarn) {
+		q.l().Printf("force rebalance on rate %f", rate)
+	} else if q.c().Verbose(VerboseInfo) {
+		q.l().Printf("rebalance on rate %f", rate)
 	}
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
-		for i := 0; uint32(i) < q.config.WorkersMax; i++ {
+		for i := 0; uint32(i) < q.c().WorkersMax; i++ {
 			if q.workers[i].getStatus() == WorkerStatusActive || q.workers[i].getStatus() == WorkerStatusSleep {
 				q.workers[i].stop(true)
 			}
 		}
-	case rate >= q.config.WakeupFactor:
+	case rate >= q.c().WakeupFactor:
 		i := q.workersUp
-		if uint32(i) == q.config.WorkersMax {
+		if uint32(i) == q.c().WorkersMax {
 			return
 		}
 		if q.workers[i].getStatus() == WorkerStatusIdle {
@@ -240,16 +240,16 @@ func (q *Queue) rebalance(force bool) {
 			q.workers[i].wakeup()
 		}
 		atomic.AddInt32(&q.workersUp, 1)
-	case rate <= q.config.SleepFactor:
+	case rate <= q.c().SleepFactor:
 		i := q.getWorkersUp() - 1
-		if (i < int32(q.config.WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
+		if (i < int32(q.c().WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
 			return
 		}
 		wu := atomic.AddInt32(&q.workersUp, -1)
 		q.workers[i].sleep()
 
-		for i := wu; uint32(i) < q.config.WorkersMax; i++ {
-			if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.config.SleepTimeout).Before(time.Now()) {
+		for i := wu; uint32(i) < q.c().WorkersMax; i++ {
+			if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.c().SleepTimeout).Before(time.Now()) {
 				q.workers[i].stop(false)
 			}
 		}
@@ -332,4 +332,16 @@ func (q *Queue) String() string {
 	b, _ := json.Marshal(out)
 
 	return string(b)
+}
+
+func (q *Queue) c() *Config {
+	return &q.config
+}
+
+func (q *Queue) m() MetricsWriter {
+	return q.config.MetricsHandler
+}
+
+func (q *Queue) l() Logger {
+	return q.config.Logger
 }
