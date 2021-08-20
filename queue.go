@@ -51,7 +51,7 @@ type Dequeuer interface {
 	Dequeue(x interface{}) error
 }
 
-type Leaker interface {
+type Catcher interface {
 	Catch(x interface{})
 }
 
@@ -116,7 +116,7 @@ func (q *Queue) init() {
 	q.stream = make(stream, c.Size)
 
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax)
-	q.SetBit(flagLeaky, c.LeakyHandler != nil)
+	q.SetBit(flagLeaky, c.Catcher != nil)
 
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
@@ -182,7 +182,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			atomic.AddInt64(&q.spinlock, -1)
 			return true
 		default:
-			q.c().LeakyHandler.Catch(x)
+			q.c().Catcher.Catch(x)
 			q.m().QueueLeak()
 			return false
 		}

@@ -54,7 +54,7 @@ type Config struct {
 	DequeueHandler Dequeuer
 	// Handler to catch leaky entries.
 	// Setting this param enables leaky feature.
-	LeakyHandler Leaker
+	Catcher Catcher
 
 	// Queue key in metrics.
 	MetricsKey string `json:"metrics_key"`
