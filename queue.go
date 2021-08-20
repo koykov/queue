@@ -47,14 +47,6 @@ type Queue struct {
 	Err error
 }
 
-type Dequeuer interface {
-	Dequeue(x interface{}) error
-}
-
-type Catcher interface {
-	Catch(x interface{})
-}
-
 func New(config Config) *Queue {
 	q := &Queue{
 		config: config,
