@@ -67,6 +67,12 @@ type Config struct {
 	VerbosityLevel VerbosityLevel
 }
 
+// Copy config instance to protect queue from changing params in runtime.
+func (c *Config) Copy() *Config {
+	cpy := *c
+	return &cpy
+}
+
 // Check verbosity level.
 func (c *Config) Verbose(level VerbosityLevel) bool {
 	return c.VerbosityLevel&level != 0

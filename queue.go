@@ -29,7 +29,7 @@ type stream chan interface{}
 
 type Queue struct {
 	bitset.Bitset
-	config Config
+	config *Config
 
 	status Status
 	stream stream
@@ -47,16 +47,16 @@ type Queue struct {
 	Err error
 }
 
-func New(config Config) *Queue {
+func New(config *Config) *Queue {
 	q := &Queue{
-		config: config,
+		config: config.Copy(),
 	}
 	q.init()
 	return q
 }
 
 func (q *Queue) init() {
-	c := &q.config
+	c := q.config
 
 	if c.Size == 0 {
 		q.Err = ErrNoSize
@@ -327,7 +327,7 @@ func (q *Queue) String() string {
 }
 
 func (q *Queue) c() *Config {
-	return &q.config
+	return q.config
 }
 
 func (q *Queue) m() MetricsWriter {
