@@ -5,11 +5,17 @@ import (
 )
 
 const (
+	// Queue default fullness rate to wake sleep workers.
 	defaultWakeupFactor = .75
-	defaultSleepFactor  = .5
-	defaultHeartbeat    = time.Second
+	// Queue default fullness rate to sleep redundant active workers.
+	defaultSleepFactor = .5
+	// Queue default heartbeat rate.
+	defaultHeartbeat = time.Second
+	// Worker default sleep interval.
+	// After that interval slept worker will stop.
 	defaultSleepTimeout = time.Second * 5
 
+	// Logger verbosity levels.
 	VerboseNone VerbosityLevel = iota
 	VerboseInfo
 	VerboseWarn
@@ -18,27 +24,50 @@ const (
 
 type VerbosityLevel uint
 
+// Queue config.
 type Config struct {
-	Size      uint64        `json:"size"`
-	Workers   uint32        `json:"workers"`
+	// Queue capacity.
+	Size uint64 `json:"size"`
+	// Workers number.
+	// Setting this param disables balancing feature. If you want to have balancing use params WorkersMin/WorkersMax
+	// instead.
+	Workers uint32 `json:"workers"`
+	// Heartbeat rate interval. Need to perform service operation like queue rebalance, workers handling, etc.
 	Heartbeat time.Duration `json:"heartbeat"`
 
-	WorkersMin   uint32  `json:"workers_min"`
-	WorkersMax   uint32  `json:"workers_max"`
+	// Minimum workers number.
+	// Setting this param less than WorkersMax enables balancing feature.
+	WorkersMin uint32 `json:"workers_min"`
+	// Maximum workers number.
+	// Setting this param greater than WorkersMin enables balancing feature.
+	WorkersMax uint32 `json:"workers_max"`
+	// Worker wake up factor in dependency of queue fullness rate.
+	// When queue fullness rate will exceeds that factor, then first available slept worker will wake.
 	WakeupFactor float32 `json:"wakeup_factor"`
-	SleepFactor  float32 `json:"sleep_factor"`
+	// Worker sleep factor in dependency of queue fullness rate.
+	// When queue fullness rate will less than  that factor, one of active workers will put to sleep.
+	SleepFactor float32 `json:"sleep_factor"`
+	// How long slept worker will wait until stop.
 	SleepTimeout time.Duration
 
+	// Dequeue handler for workers.
 	DequeueHandler Dequeuer
-	LeakyHandler   Leaker
+	// Handler to catch leaky entries.
+	// Setting this param enables leaky feature.
+	LeakyHandler Leaker
 
-	MetricsKey     string `json:"metrics_key"`
+	// Queue key in metrics.
+	MetricsKey string `json:"metrics_key"`
+	// Metrics writer handler.
 	MetricsHandler MetricsWriter
 
-	Logger         Logger
+	// Logger handler.
+	Logger Logger
+	// Verbosity level of logger.
 	VerbosityLevel VerbosityLevel
 }
 
+// Check verbosity level.
 func (c *Config) Verbose(level VerbosityLevel) bool {
 	return c.VerbosityLevel&level != 0
 }
