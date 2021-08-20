@@ -11,9 +11,9 @@ func (*DummyMetrics) QueuePut()                                   {}
 func (*DummyMetrics) QueuePull()                                  {}
 func (*DummyMetrics) QueueLeak()                                  {}
 
-type DummyLeak struct{}
+type DummyCatcher struct{}
 
-func (*DummyLeak) Catch(_ interface{}) {}
+func (*DummyCatcher) Catch(_ interface{}) {}
 
 type DummyLog struct{}
 
