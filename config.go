@@ -51,7 +51,7 @@ type Config struct {
 	SleepTimeout time.Duration
 
 	// Dequeue handler for workers.
-	DequeueHandler Dequeuer
+	Dequeuer Dequeuer
 	// Handler to catch leaky entries.
 	// Setting this param enables leaky feature.
 	Catcher Catcher
@@ -59,7 +59,7 @@ type Config struct {
 	// Queue key in metrics.
 	MetricsKey string `json:"metrics_key"`
 	// Metrics writer handler.
-	MetricsHandler MetricsWriter
+	MetricsWriter MetricsWriter
 
 	// Logger handler.
 	Logger Logger

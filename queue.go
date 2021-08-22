@@ -63,14 +63,14 @@ func (q *Queue) init() {
 		q.status = StatusFail
 		return
 	}
-	if c.DequeueHandler == nil {
-		q.Err = ErrNoDequeue
+	if c.Dequeuer == nil {
+		q.Err = ErrNoDequeuer
 		q.status = StatusFail
 		return
 	}
 
-	if c.MetricsHandler == nil {
-		c.MetricsHandler = &DummyMetrics{}
+	if c.MetricsWriter == nil {
+		c.MetricsWriter = &DummyMetrics{}
 	}
 
 	if c.Logger == nil {
@@ -331,7 +331,7 @@ func (q *Queue) c() *Config {
 }
 
 func (q *Queue) m() MetricsWriter {
-	return q.config.MetricsHandler
+	return q.config.MetricsWriter
 }
 
 func (q *Queue) l() Logger {

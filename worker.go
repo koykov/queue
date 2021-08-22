@@ -36,7 +36,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		ctl:    make(ctl, 1),
-		proc:   config.DequeueHandler,
+		proc:   config.Dequeuer,
 		config: config,
 	}
 	return w
@@ -118,7 +118,7 @@ func (w *worker) c() *Config {
 }
 
 func (w *worker) m() MetricsWriter {
-	return w.config.MetricsHandler
+	return w.config.MetricsWriter
 }
 
 func (w *worker) l() Logger {
