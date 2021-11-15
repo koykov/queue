@@ -56,8 +56,6 @@ type Config struct {
 	// Setting this param enables leaky feature.
 	Catcher Catcher
 
-	// Queue key in metrics.
-	MetricsKey string `json:"metrics_key"`
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 
