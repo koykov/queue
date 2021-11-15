@@ -108,7 +108,7 @@ func (q *Queue) init() {
 	q.stream = make(stream, c.Size)
 
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax)
-	q.SetBit(flagLeaky, c.Catcher != nil)
+	q.SetBit(flagLeaky, c.DLQ != nil)
 
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
@@ -174,7 +174,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			atomic.AddInt64(&q.spinlock, -1)
 			return true
 		default:
-			q.c().Catcher.Catch(x)
+			q.c().DLQ.Enqueue(x)
 			q.m().QueueLeak()
 			return false
 		}

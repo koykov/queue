@@ -52,9 +52,9 @@ type Config struct {
 
 	// Dequeue handler for workers.
 	Dequeuer Dequeuer
-	// Handler to catch leaky entries.
+	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
-	Catcher Catcher
+	DLQ DLQ
 
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
