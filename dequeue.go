@@ -1,5 +1,5 @@
 package blqueue
 
-type Dequeuer interface {
+type DequeueWorker interface {
 	Dequeue(x interface{}) error
 }

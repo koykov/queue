@@ -51,7 +51,7 @@ type Config struct {
 	SleepTimeout time.Duration
 
 	// Dequeue handler for workers.
-	Dequeuer Dequeuer
+	DequeueWorker DequeueWorker
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
 	DLQ DLQ

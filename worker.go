@@ -27,7 +27,7 @@ type worker struct {
 	status WorkerStatus
 	ctl    ctl
 	lastTS time.Time
-	proc   Dequeuer
+	proc   DequeueWorker
 	config *Config
 }
 
@@ -36,7 +36,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		ctl:    make(ctl, 1),
-		proc:   config.Dequeuer,
+		proc:   config.DequeueWorker,
 		config: config,
 	}
 	return w
