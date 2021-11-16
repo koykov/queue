@@ -2,6 +2,7 @@ package blqueue
 
 import (
 	"encoding/json"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,8 +42,8 @@ type Queue struct {
 
 	workersUp int32
 	acqlock   uint32
-	spinlock  int64
-	enqlock   int64
+	spinlock  uint32
+	enqlock   uint32
 
 	Err error
 }
@@ -159,11 +160,11 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		return false
 	}
 
-	atomic.AddInt64(&q.enqlock, 1)
-	defer atomic.AddInt64(&q.enqlock, -1)
+	atomic.AddUint32(&q.enqlock, 1)
+	defer atomic.AddUint32(&q.enqlock, math.MaxUint32)
 
 	if q.CheckBit(flagBalanced) {
-		if atomic.AddInt64(&q.spinlock, 1) >= spinlockLimit {
+		if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
 			q.rebalance(true)
 		}
 	}
@@ -171,7 +172,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	if q.CheckBit(flagLeaky) {
 		select {
 		case q.stream <- x:
-			atomic.AddInt64(&q.spinlock, -1)
+			atomic.AddUint32(&q.spinlock, math.MaxUint32)
 			return true
 		default:
 			q.c().DLQ.Enqueue(x)
@@ -180,14 +181,14 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		}
 	} else {
 		q.stream <- x
-		atomic.AddInt64(&q.spinlock, -1)
+		atomic.AddUint32(&q.spinlock, math.MaxUint32)
 		return true
 	}
 }
 
 func (q *Queue) Close() {
 	q.setStatus(StatusClose)
-	for atomic.LoadInt64(&q.enqlock) > 0 {
+	for atomic.LoadUint32(&q.enqlock) > 0 {
 	}
 	close(q.stream)
 }
@@ -205,7 +206,7 @@ func (q *Queue) rebalance(force bool) {
 	atomic.StoreUint32(&q.acqlock, 1)
 
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
-	atomic.StoreInt64(&q.spinlock, 0)
+	atomic.StoreUint32(&q.spinlock, 0)
 
 	rate := q.lcRate()
 	if force && q.c().Verbose(VerboseWarn) {
