@@ -19,8 +19,7 @@ const (
 	StatusThrottle
 	StatusClose
 
-	spinlockLimit  = 1000
-	idleCountLimit = 10
+	spinlockLimit = 1000
 
 	flagBalanced = 0
 	flagLeaky    = 1
@@ -131,17 +130,11 @@ func (q *Queue) init() {
 	if q.CheckBit(flagBalanced) {
 		tickerHB := time.NewTicker(c.Heartbeat)
 		go func() {
-			idleC := 0
 			for {
 				select {
 				case <-tickerHB.C:
 					q.rebalance(false)
 					if q.lcRate() == 0 && q.getStatus() == StatusClose {
-						idleC++
-					} else {
-						idleC = 0
-					}
-					if idleC > idleCountLimit {
 						return
 					}
 				}
@@ -153,9 +146,7 @@ func (q *Queue) init() {
 }
 
 func (q *Queue) Enqueue(x interface{}) bool {
-	if q.getStatus() == StatusNil {
-		q.once.Do(q.init)
-	}
+	q.once.Do(q.init)
 	if q.getStatus() == StatusClose {
 		return false
 	}
@@ -209,11 +200,11 @@ func (q *Queue) rebalance(force bool) {
 	atomic.StoreUint32(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	if force && q.c().Verbose(VerboseWarn) {
-		q.l().Printf("force rebalance on rate %f", rate)
-	} else if q.c().Verbose(VerboseInfo) {
-		q.l().Printf("rebalance on rate %f", rate)
+	msg := "rebalance on rate %f"
+	if force {
+		msg = "force rebalance on rate %f"
 	}
+	q.l().Printf(msg, rate)
 
 	q.checkAsleep()
 
@@ -238,7 +229,7 @@ func (q *Queue) rebalance(force bool) {
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.c().SleepFactor:
 		i := q.getWorkersUp() - 1
-		if (i < int32(q.c().WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
+		if i < int32(q.c().WorkersMin) {
 			return
 		}
 		atomic.AddInt32(&q.workersUp, -1)
@@ -246,7 +237,9 @@ func (q *Queue) rebalance(force bool) {
 	case rate == 1:
 		q.setStatus(StatusThrottle)
 	default:
-		q.setStatus(StatusActive)
+		if q.getStatus() == StatusThrottle {
+			q.setStatus(StatusActive)
+		}
 	}
 }
 
