@@ -42,67 +42,80 @@ func makeWorker(idx uint32, config *Config) *worker {
 	return w
 }
 
-func (w *worker) init() {
-	w.ctl <- signalInit
-}
-
-func (w *worker) sleep() {
-	w.ctl <- signalSleep
-}
-
-func (w *worker) wakeup() {
-	w.ctl <- signalWakeup
-}
-
-func (w *worker) stop(force bool) {
-	sig := signalStop
-	if force {
-		sig = signalForceStop
-	}
+func (w *worker) signal(sig signal) {
 	w.ctl <- sig
 }
 
 func (w *worker) dequeue(stream stream) {
 	for {
-		select {
-		case cmd := <-w.ctl:
-			w.lastTS = time.Now()
+		switch w.getStatus() {
+		case WorkerStatusSleep:
+			cmd := <-w.ctl
 			switch cmd {
-			case signalInit:
-				if w.c().Verbose(VerboseInfo) {
-					w.l().Printf("worker #%d init\n", w.idx)
-				}
-				w.setStatus(WorkerStatusActive)
-				w.m().WorkerInit(w.idx)
-			case signalSleep:
-				if w.c().Verbose(VerboseInfo) {
-					w.l().Printf("worker #%d sleep\n", w.idx)
-				}
-				w.setStatus(WorkerStatusSleep)
-				w.m().WorkerSleep(w.idx)
-			case signalWakeup:
-				if w.c().Verbose(VerboseInfo) {
-					w.l().Printf("worker #%d wakeup\n", w.idx)
-				}
-				w.setStatus(WorkerStatusActive)
-				w.m().WorkerWakeup(w.idx)
 			case signalStop, signalForceStop:
-				if w.c().Verbose(VerboseInfo) {
-					w.l().Printf("worker #%d stop\n", w.idx)
-				}
-				w.m().WorkerStop(w.idx, cmd == signalForceStop, w.getStatus())
-				w.setStatus(WorkerStatusIdle)
+				w.stop(cmd == signalForceStop)
 				return
+			case signalWakeup:
+				w.wakeup()
 			}
-		default:
-			if w.status == WorkerStatusActive {
-				if x, ok := <-stream; ok {
-					_ = w.proc.Dequeue(x)
-					w.m().QueuePull()
+		case WorkerStatusActive:
+			select {
+			case cmd := <-w.ctl:
+				w.lastTS = time.Now()
+				switch cmd {
+				case signalInit:
+					w.init()
+				case signalSleep:
+					w.sleep()
+				case signalWakeup:
+					w.wakeup()
+				case signalStop, signalForceStop:
+					w.stop(cmd == signalForceStop)
+					return
 				}
+			case x := <-stream:
+				_ = w.proc.Dequeue(x)
+				w.m().QueuePull()
+			}
+		case WorkerStatusIdle:
+			cmd := <-w.ctl
+			if cmd == signalInit {
+				w.init()
 			}
 		}
 	}
+}
+
+func (w *worker) init() {
+	if w.c().Verbose(VerboseInfo) {
+		w.l().Printf("worker #%d init\n", w.idx)
+	}
+	w.setStatus(WorkerStatusActive)
+	w.m().WorkerInit(w.idx)
+}
+
+func (w *worker) sleep() {
+	if w.c().Verbose(VerboseInfo) {
+		w.l().Printf("worker #%d sleep\n", w.idx)
+	}
+	w.setStatus(WorkerStatusSleep)
+	w.m().WorkerSleep(w.idx)
+}
+
+func (w *worker) wakeup() {
+	if w.c().Verbose(VerboseInfo) {
+		w.l().Printf("worker #%d wakeup\n", w.idx)
+	}
+	w.setStatus(WorkerStatusActive)
+	w.m().WorkerWakeup(w.idx)
+}
+
+func (w *worker) stop(force bool) {
+	if w.c().Verbose(VerboseInfo) {
+		w.l().Printf("worker #%d stop\n", w.idx)
+	}
+	w.m().WorkerStop(w.idx, force, w.getStatus())
+	w.setStatus(WorkerStatusIdle)
 }
 
 func (w *worker) setStatus(status WorkerStatus) {
