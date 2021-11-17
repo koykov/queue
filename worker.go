@@ -73,7 +73,11 @@ func (w *worker) dequeue(stream stream) {
 					w.stop(cmd == signalForceStop)
 					return
 				}
-			case x := <-stream:
+			case x, ok := <-stream:
+				if !ok {
+					w.stop(true)
+					return
+				}
 				_ = w.proc.Dequeue(x)
 				w.m().QueuePull()
 			}
@@ -112,7 +116,11 @@ func (w *worker) wakeup() {
 
 func (w *worker) stop(force bool) {
 	if w.c().Verbose(VerboseInfo) {
-		w.l().Printf("worker #%d stop\n", w.idx)
+		msg := "worker #%d stop\n"
+		if force {
+			msg = "worker #%d force stop\n"
+		}
+		w.l().Printf(msg, w.idx)
 	}
 	w.m().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)

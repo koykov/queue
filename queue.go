@@ -241,7 +241,6 @@ func (q *Queue) rebalance(force bool) {
 		if (i < int32(q.c().WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
 			return
 		}
-		// wu := atomic.AddInt32(&q.workersUp, -1)
 		atomic.AddInt32(&q.workersUp, -1)
 		q.workers[i].signal(signalSleep)
 	case rate == 1:
