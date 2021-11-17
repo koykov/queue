@@ -214,6 +214,9 @@ func (q *Queue) rebalance(force bool) {
 	} else if q.c().Verbose(VerboseInfo) {
 		q.l().Printf("rebalance on rate %f", rate)
 	}
+
+	q.checkAsleep()
+
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.c().WorkersMax; i++ {
@@ -238,18 +241,21 @@ func (q *Queue) rebalance(force bool) {
 		if (i < int32(q.c().WorkersMin) && q.getStatus() != StatusClose) || i < 0 {
 			return
 		}
-		wu := atomic.AddInt32(&q.workersUp, -1)
+		// wu := atomic.AddInt32(&q.workersUp, -1)
+		atomic.AddInt32(&q.workersUp, -1)
 		q.workers[i].signal(signalSleep)
-
-		for i := wu; uint32(i) < q.c().WorkersMax; i++ {
-			if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.c().SleepTimeout).Before(time.Now()) {
-				q.workers[i].signal(signalStop)
-			}
-		}
 	case rate == 1:
 		q.setStatus(StatusThrottle)
 	default:
 		q.setStatus(StatusActive)
+	}
+}
+
+func (q *Queue) checkAsleep() {
+	for i := atomic.LoadInt32(&q.workersUp); uint32(i) < q.c().WorkersMax; i++ {
+		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.c().SleepTimeout).Before(time.Now()) {
+			q.workers[i].signal(signalStop)
+		}
 	}
 }
 
