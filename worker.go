@@ -13,11 +13,11 @@ const (
 	WorkerStatusActive
 	WorkerStatusSleep
 
-	signalInit signal = iota
-	signalSleep
-	signalWakeup
-	signalStop
-	signalForceStop
+	sigInit signal = iota
+	sigSleep
+	sigWakeup
+	sigStop
+	sigForceStop
 )
 
 type ctl chan signal
@@ -52,10 +52,10 @@ func (w *worker) dequeue(stream stream) {
 		case WorkerStatusSleep:
 			cmd := <-w.ctl
 			switch cmd {
-			case signalStop, signalForceStop:
-				w.stop(cmd == signalForceStop)
+			case sigStop, sigForceStop:
+				w.stop(cmd == sigForceStop)
 				return
-			case signalWakeup:
+			case sigWakeup:
 				w.wakeup()
 			}
 		case WorkerStatusActive:
@@ -63,14 +63,14 @@ func (w *worker) dequeue(stream stream) {
 			case cmd := <-w.ctl:
 				w.lastTS = time.Now()
 				switch cmd {
-				case signalInit:
+				case sigInit:
 					w.init()
-				case signalSleep:
+				case sigSleep:
 					w.sleep()
-				case signalWakeup:
+				case sigWakeup:
 					w.wakeup()
-				case signalStop, signalForceStop:
-					w.stop(cmd == signalForceStop)
+				case sigStop, sigForceStop:
+					w.stop(cmd == sigForceStop)
 					return
 				}
 			case x, ok := <-stream:
@@ -83,7 +83,7 @@ func (w *worker) dequeue(stream stream) {
 			}
 		case WorkerStatusIdle:
 			cmd := <-w.ctl
-			if cmd == signalInit {
+			if cmd == sigInit {
 				w.init()
 			}
 		}

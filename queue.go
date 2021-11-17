@@ -119,7 +119,7 @@ func (q *Queue) init() {
 	q.m().WorkerSetup(0, 0, uint(c.WorkersMax))
 
 	for i = 0; i < c.WorkersMin; i++ {
-		q.workers[i].signal(signalInit)
+		q.workers[i].signal(sigInit)
 		go q.workers[i].dequeue(q.stream)
 	}
 	q.workersUp = int32(c.WorkersMin)
@@ -212,7 +212,7 @@ func (q *Queue) rebalance(force bool) {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := 0; uint32(i) < q.c().WorkersMax; i++ {
 			if q.workers[i].getStatus() == WorkerStatusActive || q.workers[i].getStatus() == WorkerStatusSleep {
-				q.workers[i].signal(signalForceStop)
+				q.workers[i].signal(sigForceStop)
 			}
 		}
 	case rate >= q.c().WakeupFactor:
@@ -221,10 +221,10 @@ func (q *Queue) rebalance(force bool) {
 			return
 		}
 		if q.workers[i].getStatus() == WorkerStatusIdle {
-			q.workers[i].signal(signalInit)
+			q.workers[i].signal(sigInit)
 			go q.workers[i].dequeue(q.stream)
 		} else {
-			q.workers[i].signal(signalWakeup)
+			q.workers[i].signal(sigWakeup)
 		}
 		atomic.AddInt32(&q.workersUp, 1)
 	case rate <= q.c().SleepFactor:
@@ -233,7 +233,7 @@ func (q *Queue) rebalance(force bool) {
 			return
 		}
 		atomic.AddInt32(&q.workersUp, -1)
-		q.workers[i].signal(signalSleep)
+		q.workers[i].signal(sigSleep)
 	case rate == 1:
 		q.setStatus(StatusThrottle)
 	default:
@@ -246,7 +246,7 @@ func (q *Queue) rebalance(force bool) {
 func (q *Queue) checkAsleep() {
 	for i := atomic.LoadInt32(&q.workersUp); uint32(i) < q.c().WorkersMax; i++ {
 		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.c().SleepTimeout).Before(time.Now()) {
-			q.workers[i].signal(signalStop)
+			q.workers[i].signal(sigStop)
 		}
 	}
 }
