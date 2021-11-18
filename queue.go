@@ -216,8 +216,8 @@ func (q *Queue) rebalance(force bool) {
 
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
-		for i := 0; uint32(i) < q.c().WorkersMax; i++ {
-			if q.workers[i].getStatus() == WorkerStatusActive || q.workers[i].getStatus() == WorkerStatusSleep {
+		for i := uint32(0); i < q.c().WorkersMax; i++ {
+			if ws := q.workers[i].getStatus(); ws == WorkerStatusActive || ws == WorkerStatusSleep {
 				q.workers[i].signal(sigForceStop)
 			}
 		}
@@ -230,7 +230,7 @@ func (q *Queue) rebalance(force bool) {
 			if ws == WorkerStatusActive {
 				continue
 			}
-			if q.workers[i].getStatus() == WorkerStatusIdle {
+			if ws == WorkerStatusIdle {
 				q.workers[i].signal(sigInit)
 				go q.workers[i].dequeue(q.stream)
 			} else {
@@ -250,9 +250,8 @@ func (q *Queue) rebalance(force bool) {
 		for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
 				q.workers[i].signal(sigSleep)
-				atomic.AddInt32(&q.workersUp, -1)
 				c++
-				if c == target {
+				if uint32(atomic.AddInt32(&q.workersUp, -1)) == q.c().WorkersMin || c == target {
 					break
 				}
 			}
