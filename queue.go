@@ -243,11 +243,18 @@ func (q *Queue) rebalance(force bool) {
 		if uint32(q.getWorkersUp()) == q.c().WorkersMin {
 			return
 		}
+		var target, c int32
+		if target = q.getWorkersUp() / 2; target == 0 {
+			target = 1
+		}
 		for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
 				q.workers[i].signal(sigSleep)
 				atomic.AddInt32(&q.workersUp, -1)
-				break
+				c++
+				if c == target {
+					break
+				}
 			}
 		}
 	case rate == 1:
