@@ -20,12 +20,10 @@ const (
 	sigForceStop
 )
 
-type ctl chan signal
-
 type worker struct {
 	idx    uint32
 	status WorkerStatus
-	ctl    ctl
+	pause  chan struct{}
 	lastTS time.Time
 	proc   DequeueWorker
 	config *Config
@@ -35,7 +33,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 	w := &worker{
 		idx:    idx,
 		status: WorkerStatusIdle,
-		ctl:    make(ctl, 1),
+		pause:  make(chan struct{}, 1),
 		proc:   config.DequeueWorker,
 		config: config,
 	}
@@ -43,49 +41,34 @@ func makeWorker(idx uint32, config *Config) *worker {
 }
 
 func (w *worker) signal(sig signal) {
-	w.ctl <- sig
+	w.lastTS = time.Now()
+	switch sig {
+	case sigInit:
+		w.init()
+	case sigSleep:
+		w.sleep()
+	case sigWakeup:
+		w.wakeup()
+	case sigStop, sigForceStop:
+		w.stop(sig == sigForceStop)
+	}
 }
 
 func (w *worker) dequeue(stream stream) {
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
-			cmd := <-w.ctl
-			switch cmd {
-			case sigStop, sigForceStop:
-				w.stop(cmd == sigForceStop)
-				return
-			case sigWakeup:
-				w.wakeup()
-			}
+			<-w.pause
 		case WorkerStatusActive:
-			select {
-			case cmd := <-w.ctl:
-				w.lastTS = time.Now()
-				switch cmd {
-				case sigInit:
-					w.init()
-				case sigSleep:
-					w.sleep()
-				case sigWakeup:
-					w.wakeup()
-				case sigStop, sigForceStop:
-					w.stop(cmd == sigForceStop)
-					return
-				}
-			case x, ok := <-stream:
-				if !ok {
-					w.stop(true)
-					return
-				}
-				_ = w.proc.Dequeue(x)
-				w.m().QueuePull()
+			x, ok := <-stream
+			if !ok {
+				w.stop(true)
+				return
 			}
+			_ = w.proc.Dequeue(x)
+			w.m().QueuePull()
 		case WorkerStatusIdle:
-			cmd := <-w.ctl
-			if cmd == sigInit {
-				w.init()
-			}
+			return
 		}
 	}
 }
@@ -112,6 +95,7 @@ func (w *worker) wakeup() {
 	}
 	w.setStatus(WorkerStatusActive)
 	w.m().WorkerWakeup(w.idx)
+	w.pause <- struct{}{}
 }
 
 func (w *worker) stop(force bool) {
@@ -124,6 +108,7 @@ func (w *worker) stop(force bool) {
 	}
 	w.m().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
+	w.pause <- struct{}{}
 }
 
 func (w *worker) setStatus(status WorkerStatus) {

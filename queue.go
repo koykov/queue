@@ -204,11 +204,13 @@ func (q *Queue) rebalance(force bool) {
 	atomic.StoreUint32(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	msg := "rebalance on rate %f"
-	if force {
-		msg = "force rebalance on rate %f"
+	if q.c().Verbose(VerboseInfo) {
+		msg := "rebalance: rate %f, workers %d"
+		if force {
+			msg = "force rebalance: rate %f, workers %d"
+		}
+		q.l().Printf(msg, rate, atomic.LoadInt32(&q.workersUp))
 	}
-	q.l().Printf(msg, rate)
 
 	q.checkAsleep()
 
@@ -243,8 +245,9 @@ func (q *Queue) rebalance(force bool) {
 		}
 		for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
-				atomic.AddInt32(&q.workersUp, -1)
 				q.workers[i].signal(sigSleep)
+				atomic.AddInt32(&q.workersUp, -1)
+				break
 			}
 		}
 	case rate == 1:
