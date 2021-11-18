@@ -184,6 +184,10 @@ func (q *Queue) Close() {
 	close(q.stream)
 }
 
+func (q *Queue) ForceClose() {
+	// todo implement me
+}
+
 func (q *Queue) rebalance(force bool) {
 	q.mux.Lock()
 	defer func() {
@@ -232,8 +236,10 @@ func (q *Queue) rebalance(force bool) {
 		if i < int32(q.c().WorkersMin) {
 			return
 		}
-		atomic.AddInt32(&q.workersUp, -1)
-		q.workers[i].signal(sigSleep)
+		if q.workers[i].getStatus() == WorkerStatusActive {
+			atomic.AddInt32(&q.workersUp, -1)
+			q.workers[i].signal(sigSleep)
+		}
 	case rate == 1:
 		q.setStatus(StatusThrottle)
 	default:
