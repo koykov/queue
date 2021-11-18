@@ -24,7 +24,7 @@ type worker struct {
 	idx    uint32
 	status WorkerStatus
 	pause  chan struct{}
-	lastTS time.Time
+	lastTS int64
 	proc   DequeueWorker
 	config *Config
 }
@@ -41,7 +41,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 }
 
 func (w *worker) signal(sig signal) {
-	w.lastTS = time.Now()
+	atomic.StoreInt64(&w.lastTS, time.Now().UnixNano())
 	switch sig {
 	case sigInit:
 		w.init()
@@ -117,6 +117,11 @@ func (w *worker) setStatus(status WorkerStatus) {
 
 func (w *worker) getStatus() WorkerStatus {
 	return WorkerStatus(atomic.LoadUint32((*uint32)(&w.status)))
+}
+
+func (w *worker) sleptEnough() bool {
+	dur := time.Duration(time.Now().UnixNano() - atomic.LoadInt64(&w.lastTS))
+	return dur >= w.c().SleepTimeout
 }
 
 func (w *worker) c() *Config {

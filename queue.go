@@ -51,7 +51,7 @@ func New(config *Config) *Queue {
 	q := &Queue{
 		config: config.Copy(),
 	}
-	q.init()
+	q.once.Do(q.init)
 	return q
 }
 
@@ -261,7 +261,7 @@ func (q *Queue) rebalance(force bool) {
 
 func (q *Queue) checkAsleep() {
 	for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
-		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].lastTS.Add(q.c().SleepTimeout).Before(time.Now()) {
+		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].sleptEnough() {
 			q.workers[i].signal(sigStop)
 		}
 	}
