@@ -66,7 +66,7 @@ func (w *worker) dequeue(stream stream) {
 				return
 			}
 			_ = w.proc.Dequeue(x)
-			w.m().QueuePull()
+			w.m().QueuePull(w.k())
 		case WorkerStatusIdle:
 			return
 		}
@@ -74,39 +74,39 @@ func (w *worker) dequeue(stream stream) {
 }
 
 func (w *worker) init() {
-	if w.c().Verbose(VerboseInfo) {
-		w.l().Printf("worker #%d init\n", w.idx)
+	if w.l() != nil {
+		w.l().Printf("queue #%s worker #%d init\n", w.k(), w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerInit(w.idx)
+	w.m().WorkerInit(w.k(), w.idx)
 }
 
 func (w *worker) sleep() {
-	if w.c().Verbose(VerboseInfo) {
-		w.l().Printf("worker #%d sleep\n", w.idx)
+	if w.l() != nil {
+		w.l().Printf("queue #%s worker #%d sleep\n", w.k(), w.idx)
 	}
 	w.setStatus(WorkerStatusSleep)
-	w.m().WorkerSleep(w.idx)
+	w.m().WorkerSleep(w.k(), w.idx)
 }
 
 func (w *worker) wakeup() {
-	if w.c().Verbose(VerboseInfo) {
-		w.l().Printf("worker #%d wakeup\n", w.idx)
+	if w.l() != nil {
+		w.l().Printf("queue #%s worker #%d wakeup\n", w.k(), w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerWakeup(w.idx)
+	w.m().WorkerWakeup(w.k(), w.idx)
 	w.pause <- struct{}{}
 }
 
 func (w *worker) stop(force bool) {
-	if w.c().Verbose(VerboseInfo) {
-		msg := "worker #%d stop\n"
+	if w.l() != nil {
+		msg := "queue #%s worker #%d stop\n"
 		if force {
-			msg = "worker #%d force stop\n"
+			msg = "queue #%s worker #%d force stop\n"
 		}
-		w.l().Printf(msg, w.idx)
+		w.l().Printf(msg, w.k(), w.idx)
 	}
-	w.m().WorkerStop(w.idx, force, w.getStatus())
+	w.m().WorkerStop(w.k(), w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
 	w.pause <- struct{}{}
 }
@@ -126,6 +126,10 @@ func (w *worker) sleptEnough() bool {
 
 func (w *worker) c() *Config {
 	return w.config
+}
+
+func (w *worker) k() string {
+	return w.config.Key
 }
 
 func (w *worker) m() MetricsWriter {

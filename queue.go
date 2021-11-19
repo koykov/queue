@@ -58,6 +58,11 @@ func New(config *Config) *Queue {
 func (q *Queue) init() {
 	c := q.config
 
+	if len(c.Key) == 0 {
+		q.Err = ErrNoKey
+		q.status = StatusFail
+		return
+	}
 	if c.Size == 0 {
 		q.Err = ErrNoSize
 		q.status = StatusFail
@@ -71,13 +76,6 @@ func (q *Queue) init() {
 
 	if c.MetricsWriter == nil {
 		c.MetricsWriter = &DummyMetrics{}
-	}
-
-	if c.Logger == nil {
-		c.Logger = &DummyLog{}
-	}
-	if c.VerbosityLevel == 0 {
-		c.VerbosityLevel = VerboseNone
 	}
 
 	if c.Workers > 0 && c.WorkersMin == 0 {
@@ -113,10 +111,10 @@ func (q *Queue) init() {
 	q.workers = make([]*worker, c.WorkersMax)
 	var i uint32
 	for i = 0; i < c.WorkersMax; i++ {
-		q.m().WorkerSleep(i)
+		q.m().WorkerSleep(q.k(), i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	q.m().WorkerSetup(0, 0, uint(c.WorkersMax))
+	q.m().WorkerSetup(q.k(), 0, 0, uint(c.WorkersMax))
 
 	for i = 0; i < c.WorkersMin; i++ {
 		q.workers[i].signal(sigInit)
@@ -159,7 +157,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			q.rebalance(true)
 		}
 	}
-	q.m().QueuePut()
+	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
 		select {
 		case q.stream <- x:
@@ -167,7 +165,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			return true
 		default:
 			q.c().DLQ.Enqueue(x)
-			q.m().QueueLeak()
+			q.m().QueueLeak(q.k())
 			return false
 		}
 	} else {
@@ -178,6 +176,9 @@ func (q *Queue) Enqueue(x interface{}) bool {
 }
 
 func (q *Queue) Close() {
+	if q.l() != nil {
+		q.l().Printf("queue #%s caught close signal", q.k())
+	}
 	q.setStatus(StatusClose)
 	for atomic.LoadUint32(&q.enqlock) > 0 {
 	}
@@ -185,6 +186,9 @@ func (q *Queue) Close() {
 }
 
 func (q *Queue) ForceClose() {
+	if q.l() != nil {
+		q.l().Printf("queue #%s caught force close signal", q.k())
+	}
 	// todo implement me
 }
 
@@ -204,12 +208,12 @@ func (q *Queue) rebalance(force bool) {
 	atomic.StoreUint32(&q.spinlock, 0)
 
 	rate := q.lcRate()
-	if q.c().Verbose(VerboseInfo) {
-		msg := "rebalance: rate %f, workers %d"
+	if q.l() != nil {
+		msg := "queue #%s rebalance: rate %f, workers %d"
 		if force {
-			msg = "force rebalance: rate %f, workers %d"
+			msg = "queue #%s force rebalance: rate %f, workers %d"
 		}
-		q.l().Printf(msg, rate, atomic.LoadInt32(&q.workersUp))
+		q.l().Printf(msg, q.k(), rate, atomic.LoadInt32(&q.workersUp))
 	}
 
 	q.checkAsleep()
@@ -349,6 +353,10 @@ func (q *Queue) String() string {
 
 func (q *Queue) c() *Config {
 	return q.config
+}
+
+func (q *Queue) k() string {
+	return q.config.Key
 }
 
 func (q *Queue) m() MetricsWriter {
