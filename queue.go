@@ -132,7 +132,7 @@ func (q *Queue) init() {
 				select {
 				case <-tickerHB.C:
 					q.rebalance(false)
-					if q.lcRate() == 0 && q.getStatus() == StatusClose {
+					if q.Rate() == 0 && q.getStatus() == StatusClose {
 						return
 					}
 				}
@@ -175,6 +175,10 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	}
 }
 
+func (q *Queue) Rate() float32 {
+	return float32(len(q.stream)) / float32(cap(q.stream))
+}
+
 func (q *Queue) Close() {
 	if q.l() != nil {
 		q.l().Printf("queue #%s caught close signal", q.k())
@@ -207,7 +211,7 @@ func (q *Queue) rebalance(force bool) {
 	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
 	atomic.StoreUint32(&q.spinlock, 0)
 
-	rate := q.lcRate()
+	rate := q.Rate()
 	if q.l() != nil {
 		msg := "queue #%s rebalance: rate %f, workers %d"
 		if force {
@@ -277,10 +281,6 @@ func (q *Queue) checkAsleep() {
 	}
 }
 
-func (q *Queue) lcRate() float32 {
-	return float32(len(q.stream)) / float32(cap(q.stream))
-}
-
 func (q *Queue) getWorkersUp() int32 {
 	return atomic.LoadInt32(&q.workersUp)
 }
@@ -329,7 +329,7 @@ func (q *Queue) String() string {
 	case StatusClose:
 		out.Status = "close"
 	}
-	out.FullnessRate = q.lcRate()
+	out.FullnessRate = q.Rate()
 
 	for _, w := range q.workers {
 		if w == nil {
