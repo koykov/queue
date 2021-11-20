@@ -16,7 +16,7 @@ const (
 	defaultSleepTimeout = time.Second * 5
 )
 
-// Queue config.
+// Config describes queue properties and behavior.
 type Config struct {
 	// Unique queue key. Indicates queue in logs and metrics.
 	Key string
@@ -44,8 +44,8 @@ type Config struct {
 	// How long slept worker will wait until stop.
 	SleepTimeout time.Duration
 
-	// Dequeue handler for workers.
-	DequeueWorker DequeueWorker
+	// Dequeuer is a worker's dequeue helper.
+	Dequeuer Dequeuer
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
 	DLQ DLQ
@@ -57,7 +57,7 @@ type Config struct {
 	Logger Logger
 }
 
-// Copy config instance to protect queue from changing params in runtime.
+// Copy copies config instance to protect queue from changing params in runtime.
 func (c *Config) Copy() *Config {
 	cpy := *c
 	return &cpy

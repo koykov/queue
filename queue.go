@@ -68,8 +68,8 @@ func (q *Queue) init() {
 		q.status = StatusFail
 		return
 	}
-	if c.DequeueWorker == nil {
-		q.Err = ErrNoDequeue
+	if c.Dequeuer == nil {
+		q.Err = ErrNoDequeuer
 		q.status = StatusFail
 		return
 	}
