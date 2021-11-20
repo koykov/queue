@@ -47,12 +47,12 @@ type Queue struct {
 	Err error
 }
 
-func New(config *Config) *Queue {
+func New(config *Config) (*Queue, error) {
 	q := &Queue{
 		config: config.Copy(),
 	}
 	q.once.Do(q.init)
-	return q
+	return q, q.Err
 }
 
 func (q *Queue) init() {
