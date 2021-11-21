@@ -14,6 +14,8 @@ const (
 	// Worker default sleep interval.
 	// After that interval slept worker will stop.
 	defaultSleepTimeout = time.Second * 5
+	// Default simultaneous enqueue operation limit to start force calibration.
+	defaultForceCalibrationLimit = 1000
 )
 
 // Config describes queue properties and behavior.
@@ -22,11 +24,14 @@ type Config struct {
 	Key string
 	// Queue capacity.
 	Size uint64
+	// Simultaneous enqueue operation limit to start force calibration..
+	// Works only on balanced queues.
+	ForceCalibrationLimit uint32
 	// Workers number.
 	// Setting this param disables balancing feature. If you want to have balancing use params WorkersMin/WorkersMax
 	// instead.
 	Workers uint32
-	// Heartbeat rate interval. Need to perform service operation like queue rebalance, workers handling, etc.
+	// Heartbeat rate interval. Need to perform service operation like queue calibration, workers handling, etc.
 	Heartbeat time.Duration
 
 	// Minimum workers number.

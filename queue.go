@@ -2,7 +2,6 @@ package blqueue
 
 import (
 	"encoding/json"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,8 +17,6 @@ const (
 	StatusActive
 	StatusThrottle
 	StatusClose
-
-	spinlockLimit = 1000
 
 	flagBalanced = 0
 	flagLeaky    = 1
@@ -41,8 +38,8 @@ type Queue struct {
 
 	workersUp int32
 	c9nlock   uint32
-	spinlock  uint32
-	enqlock   uint32
+	spinlock  int64
+	enqlock   int64
 
 	Err error
 }
@@ -76,6 +73,10 @@ func (q *Queue) init() {
 
 	if c.MetricsWriter == nil {
 		c.MetricsWriter = &DummyMetrics{}
+	}
+
+	if c.ForceCalibrationLimit == 0 {
+		c.ForceCalibrationLimit = defaultForceCalibrationLimit
 	}
 
 	if c.Workers > 0 && c.WorkersMin == 0 {
@@ -149,11 +150,12 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		return false
 	}
 
-	atomic.AddUint32(&q.enqlock, 1)
-	defer atomic.AddUint32(&q.enqlock, math.MaxUint32)
+	atomic.AddInt64(&q.enqlock, 1)
+	defer atomic.AddInt64(&q.enqlock, -1)
 
 	if q.CheckBit(flagBalanced) {
-		if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
+		defer atomic.AddInt64(&q.spinlock, -1)
+		if atomic.AddInt64(&q.spinlock, 1) >= int64(q.c().ForceCalibrationLimit) {
 			q.calibrate(true)
 		}
 	}
@@ -161,7 +163,6 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	if q.CheckBit(flagLeaky) {
 		select {
 		case q.stream <- x:
-			atomic.AddUint32(&q.spinlock, math.MaxUint32)
 			return true
 		default:
 			q.c().DLQ.Enqueue(x)
@@ -170,7 +171,6 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		}
 	} else {
 		q.stream <- x
-		atomic.AddUint32(&q.spinlock, math.MaxUint32)
 		return true
 	}
 }
@@ -184,7 +184,7 @@ func (q *Queue) Close() {
 		q.l().Printf("queue #%s caught close signal", q.k())
 	}
 	q.setStatus(StatusClose)
-	for atomic.LoadUint32(&q.enqlock) > 0 {
+	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	close(q.stream)
 }
@@ -211,7 +211,7 @@ func (q *Queue) calibrate(force bool) {
 	atomic.StoreUint32(&q.c9nlock, 1)
 
 	// Reset spinlock immediately to reduce amount of threads waiting for calibrate.
-	atomic.StoreUint32(&q.spinlock, 0)
+	atomic.StoreInt64(&q.spinlock, 0)
 
 	rate := q.Rate()
 	if q.l() != nil {
