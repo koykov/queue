@@ -40,7 +40,7 @@ type Queue struct {
 	once sync.Once
 
 	workersUp int32
-	acqlock   uint32
+	c9nlock   uint32
 	spinlock  uint32
 	enqlock   uint32
 
@@ -131,7 +131,7 @@ func (q *Queue) init() {
 			for {
 				select {
 				case <-tickerHB.C:
-					q.rebalance(false)
+					q.calibrate(false)
 					if q.Rate() == 0 && q.getStatus() == StatusClose {
 						return
 					}
@@ -154,7 +154,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 	if q.CheckBit(flagBalanced) {
 		if atomic.AddUint32(&q.spinlock, 1) >= spinlockLimit {
-			q.rebalance(true)
+			q.calibrate(true)
 		}
 	}
 	q.m().QueuePut(q.k())
@@ -196,31 +196,37 @@ func (q *Queue) ForceClose() {
 	// todo implement me
 }
 
-func (q *Queue) rebalance(force bool) {
-	q.mux.Lock()
-	defer func() {
-		atomic.StoreUint32(&q.acqlock, 0)
-		q.mux.Unlock()
-	}()
-	if atomic.LoadUint32(&q.acqlock) == 1 {
+func (q *Queue) calibrate(force bool) {
+	// Check calibration lock before mutex lock.
+	if atomic.LoadUint32(&q.c9nlock) == 1 {
 		return
 	}
 
-	atomic.StoreUint32(&q.acqlock, 1)
+	q.mux.Lock()
+	defer func() {
+		atomic.StoreUint32(&q.c9nlock, 0)
+		q.mux.Unlock()
+	}()
 
-	// Reset spinlock immediately to reduce amount of threads waiting for rebalance.
+	atomic.StoreUint32(&q.c9nlock, 1)
+
+	// Reset spinlock immediately to reduce amount of threads waiting for calibrate.
 	atomic.StoreUint32(&q.spinlock, 0)
 
 	rate := q.Rate()
 	if q.l() != nil {
-		msg := "queue #%s rebalance: rate %f, workers %d"
+		msg := "queue #%s calibrate: rate %f, workers %d"
 		if force {
-			msg = "queue #%s force rebalance: rate %f, workers %d"
+			msg = "queue #%s force calibrate: rate %f, workers %d"
 		}
 		q.l().Printf(msg, q.k(), rate, atomic.LoadInt32(&q.workersUp))
 	}
 
-	q.checkAsleep()
+	for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
+		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].sleptEnough() {
+			q.workers[i].signal(sigStop)
+		}
+	}
 
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
@@ -269,14 +275,6 @@ func (q *Queue) rebalance(force bool) {
 	default:
 		if q.getStatus() == StatusThrottle {
 			q.setStatus(StatusActive)
-		}
-	}
-}
-
-func (q *Queue) checkAsleep() {
-	for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
-		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].sleptEnough() {
-			q.workers[i].signal(sigStop)
 		}
 	}
 }
