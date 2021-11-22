@@ -24,7 +24,7 @@ type Config struct {
 	Key string
 	// Queue capacity.
 	Size uint64
-	// Simultaneous enqueue operation limit to start force calibration..
+	// Simultaneous enqueue operation limit to start force calibration.
 	// Works only on balanced queues.
 	ForceCalibrationLimit uint32
 	// Workers number.
@@ -49,6 +49,9 @@ type Config struct {
 	// How long slept worker will wait until stop.
 	SleepTimeout time.Duration
 
+	// Schedule contains base params (like workers min/max and factors) for specific time ranges.
+	Schedule *Schedule
+
 	// Dequeuer is a worker's dequeue helper.
 	Dequeuer Dequeuer
 	// Dead letter queue to catch leaky items.
@@ -65,5 +68,8 @@ type Config struct {
 // Copy copies config instance to protect queue from changing params in runtime.
 func (c *Config) Copy() *Config {
 	cpy := *c
+	if c.Schedule != nil {
+		cpy.Schedule = c.Schedule.Copy()
+	}
 	return &cpy
 }
