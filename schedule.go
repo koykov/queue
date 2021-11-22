@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 const (
@@ -17,8 +17,8 @@ const (
 )
 
 type Schedule struct {
-	buf  []schedRule
-	once sync.Once
+	buf []schedRule
+	srt bool
 }
 
 type schedRule struct {
@@ -38,15 +38,19 @@ func NewSchedule() *Schedule {
 	return s
 }
 
-func (s *Schedule) init() {
-	// todo implement me
+func (s *Schedule) sort() {
+	if s.srt == true {
+		return
+	}
+	s.srt = true
+	sort.Sort(s)
 }
 
-func (s *Schedule) AddRange(raw string, min, max uint32, wakeup, sleep float32) (err error) {
-	if max == 0 {
+func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFactor, sleepFactor float32) (err error) {
+	if workersMax == 0 {
 		return ErrSchedZeroMax
 	}
-	if min > max {
+	if workersMin > workersMax {
 		return ErrSchedMinGtMax
 	}
 
@@ -74,15 +78,28 @@ func (s *Schedule) AddRange(raw string, min, max uint32, wakeup, sleep float32) 
 	s.buf = append(s.buf, schedRule{
 		lt: lt,
 		rt: rt,
-		wn: min,
-		wx: max,
-		wf: wakeup,
-		sf: sleep,
+		wn: workersMin,
+		wx: workersMax,
+		wf: wakeupFactor,
+		sf: sleepFactor,
 	})
 	return nil
 }
 
+func (s *Schedule) Len() int {
+	return len(s.buf)
+}
+
+func (s *Schedule) Less(i, j int) bool {
+	return s.buf[i].lt < s.buf[j].lt
+}
+
+func (s *Schedule) Swap(i, j int) {
+	s.buf[i], s.buf[j] = s.buf[j], s.buf[i]
+}
+
 func (s *Schedule) String() string {
+	s.sort()
 	var buf bytes.Buffer
 	_, _ = buf.WriteString("[\n")
 	for i := 0; i < len(s.buf); i++ {

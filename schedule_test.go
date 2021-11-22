@@ -46,4 +46,18 @@ func TestSchedule(t *testing.T) {
 			}
 		}
 	})
+	t.Run("sort", func(t *testing.T) {
+		exp := `[
+	06:12:43.000-08:43:12.000 min: 0 max: 1 wakeup: 0 sleep: 0
+	12:00:00.000-13:00:00.000 min: 0 max: 1 wakeup: 0 sleep: 0,
+	16:00:30.000-18:05:32.000 min: 0 max: 1 wakeup: 0 sleep: 0,
+]`
+		s := NewSchedule()
+		_ = s.AddRange("12:00-13:00", 0, 1, 0, 0)
+		_ = s.AddRange("06:12:43-08:43:12", 0, 1, 0, 0)
+		_ = s.AddRange("16:00:30-18:05:32", 0, 1, 0, 0)
+		if s.String() != exp {
+			t.Error("sort failed")
+		}
+	})
 }
