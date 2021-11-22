@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -86,6 +87,41 @@ func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFac
 	return nil
 }
 
+func (s *Schedule) Get() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
+	l := len(s.buf)
+	if l == 0 {
+		return
+	}
+	schedID = -1
+	s.sort()
+	now := time.Now()
+	h, m, sc, ms := now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1e6
+	t := uint32(h*msHour + m*msMin + sc*msSec + ms)
+	_ = s.buf[l-1]
+	for i := 0; i < l; i++ {
+		r := s.buf[i]
+		if r.lt <= t && r.rt > t {
+			workersMin, workersMax, wakeupFactor, sleepFactor, schedID = r.wn, r.wx, r.wf, r.sf, i
+			return
+		}
+	}
+	return
+}
+
+func (s *Schedule) workersMax() (max uint32) {
+	l := len(s.buf)
+	if l == 0 {
+		return 0
+	}
+	_ = s.buf[l-1]
+	for i := 0; i < l; i++ {
+		if s.buf[i].wx > max {
+			max = s.buf[i].wx
+		}
+	}
+	return
+}
+
 func (s *Schedule) Len() int {
 	return len(s.buf)
 }
@@ -96,6 +132,13 @@ func (s *Schedule) Less(i, j int) bool {
 
 func (s *Schedule) Swap(i, j int) {
 	s.buf[i], s.buf[j] = s.buf[j], s.buf[i]
+}
+
+func (s *Schedule) Copy() *Schedule {
+	s.sort()
+	cpy := &Schedule{}
+	cpy.buf = append(cpy.buf, s.buf...)
+	return cpy
 }
 
 func (s *Schedule) String() string {

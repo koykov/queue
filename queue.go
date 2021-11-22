@@ -26,7 +26,9 @@ type stream chan interface{}
 
 type Queue struct {
 	bitset.Bitset
-	config *Config
+	config  *Config
+	schedID int
+	wmax    uint32
 
 	status Status
 	stream stream
@@ -106,22 +108,26 @@ func (q *Queue) init() {
 
 	q.stream = make(stream, c.Size)
 
-	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax)
+	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
 	q.SetBit(flagLeaky, c.DLQ != nil)
 
-	q.workers = make([]*worker, c.WorkersMax)
+	q.wmax = q.rtWorkersMax()
+	var workersMin, workersMax uint32
+	workersMin, workersMax, _, _, q.schedID = q.rtParams()
+
+	q.workers = make([]*worker, q.wmax)
 	var i uint32
-	for i = 0; i < c.WorkersMax; i++ {
+	for i = 0; i < q.wmax; i++ {
 		q.m().WorkerSleep(q.k(), i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	q.m().WorkerSetup(q.k(), 0, 0, uint(c.WorkersMax))
+	q.m().WorkerSetup(q.k(), 0, 0, uint(workersMax))
 
-	for i = 0; i < c.WorkersMin; i++ {
+	for i = 0; i < workersMin; i++ {
 		q.workers[i].signal(sigInit)
 		go q.workers[i].dequeue(q.stream)
 	}
-	q.workersUp = int32(c.WorkersMin)
+	q.workersUp = int32(workersMin)
 
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat
@@ -228,6 +234,8 @@ func (q *Queue) calibrate(force bool) {
 		}
 	}
 
+	// todo check schedID
+
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		for i := uint32(0); i < q.c().WorkersMax; i++ {
@@ -277,6 +285,34 @@ func (q *Queue) calibrate(force bool) {
 			q.setStatus(StatusActive)
 		}
 	}
+}
+
+func (q *Queue) rtWorkersMax() uint32 {
+	sched, conf := uint32(0), q.c().WorkersMax
+	if q.c().Schedule != nil {
+		sched = q.c().Schedule.workersMax()
+	}
+	if sched > conf {
+		return sched
+	}
+	return conf
+}
+
+func (q *Queue) rtParams() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
+	c := q.c()
+	if c.Schedule != nil {
+		if workersMin, workersMax, wakeupFactor, sleepFactor, schedID = c.Schedule.Get(); schedID != -1 {
+			if wakeupFactor == 0 {
+				wakeupFactor = c.WakeupFactor
+			}
+			if sleepFactor == 0 {
+				sleepFactor = c.SleepFactor
+			}
+			return
+		}
+	}
+	workersMin, workersMax, wakeupFactor, sleepFactor, schedID = c.WorkersMin, c.WorkersMax, c.WakeupFactor, c.SleepFactor, -1
+	return
 }
 
 func (q *Queue) getWorkersUp() int32 {
