@@ -256,7 +256,24 @@ func (q *Queue) calibrate(force bool) {
 			}
 		}
 		if wu := uint32(q.getWorkersUp()); workersMin > wu {
-			// todo wakeup or init workersMin-wu workers
+			target := workersMin - wu
+			var c uint32
+			for i := uint32(0); i < q.wmax; i++ {
+				switch q.workers[i].getStatus() {
+				case WorkerStatusIdle:
+					q.workers[i].signal(sigInit)
+					go q.workers[i].dequeue(q.stream)
+				case WorkerStatusSleep:
+					q.workers[i].signal(sigWakeup)
+				default:
+					continue
+				}
+				c++
+				atomic.AddInt32(&q.workersUp, 1)
+				if c == target {
+					break
+				}
+			}
 		}
 		var active, sleep, idle uint
 		for i := uint32(0); i < workersMax; i++ {
