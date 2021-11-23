@@ -228,26 +228,63 @@ func (q *Queue) calibrate(force bool) {
 		q.l().Printf(msg, q.k(), rate, atomic.LoadInt32(&q.workersUp))
 	}
 
+	// Stop pre-sleeping workers.
 	for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
 		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].sleptEnough() {
 			q.workers[i].signal(sigStop)
 		}
 	}
 
-	// todo check schedID
+	// Check schedID change.
+	var (
+		workersMin, workersMax    uint32
+		wakeupFactor, sleepFactor float32
+		schedID                   int
+	)
+	if workersMin, workersMax, wakeupFactor, sleepFactor, schedID = q.rtParams(); schedID != q.schedID {
+		q.schedID = schedID
+		if q.l() != nil {
+			q.l().Printf("queue #%s: switch to schedID %d (workers %d/%d, wakeup factor %f, sleep factor %f)",
+				q.k(), schedID, workersMin, workersMax, wakeupFactor, sleepFactor)
+		}
+		if q.wmax > workersMax {
+			for i := q.wmax - 1; i >= workersMax; i-- {
+				if q.workers[i].getStatus() == WorkerStatusActive {
+					q.workers[i].stop(true)
+					atomic.AddInt32(&q.workersUp, -1)
+				}
+			}
+		}
+		if wu := uint32(q.getWorkersUp()); workersMin > wu {
+			// todo wakeup or init workersMin-wu workers
+		}
+		var active, sleep, idle uint
+		for i := uint32(0); i < workersMax; i++ {
+			switch q.workers[i].getStatus() {
+			case WorkerStatusIdle:
+				idle++
+			case WorkerStatusSleep:
+				sleep++
+			case WorkerStatusActive:
+				active++
+			}
+		}
+		q.m().WorkerSetup(q.k(), active, sleep, idle)
+	}
 
+	// Calibration issues.
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
-		for i := uint32(0); i < q.c().WorkersMax; i++ {
+		for i := uint32(0); i < workersMax; i++ {
 			if ws := q.workers[i].getStatus(); ws == WorkerStatusActive || ws == WorkerStatusSleep {
 				q.workers[i].signal(sigForceStop)
 			}
 		}
-	case rate >= q.c().WakeupFactor:
-		if uint32(q.getWorkersUp()) == q.c().WorkersMax {
+	case rate >= wakeupFactor:
+		if uint32(q.getWorkersUp()) == workersMax {
 			return
 		}
-		for i := q.c().WorkersMin; i < q.c().WorkersMax; i++ {
+		for i := workersMin; i < workersMax; i++ {
 			ws := q.workers[i].getStatus()
 			if ws == WorkerStatusActive {
 				continue
@@ -261,19 +298,19 @@ func (q *Queue) calibrate(force bool) {
 			atomic.AddInt32(&q.workersUp, 1)
 			break
 		}
-	case rate <= q.c().SleepFactor:
-		if uint32(q.getWorkersUp()) == q.c().WorkersMin {
+	case rate <= sleepFactor:
+		if uint32(q.getWorkersUp()) == workersMin {
 			return
 		}
 		var target, c int32
 		if target = q.getWorkersUp() / 2; target == 0 {
 			target = 1
 		}
-		for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
+		for i := workersMax - 1; i >= workersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
 				q.workers[i].signal(sigSleep)
 				c++
-				if uint32(atomic.AddInt32(&q.workersUp, -1)) == q.c().WorkersMin || c == target {
+				if uint32(atomic.AddInt32(&q.workersUp, -1)) == workersMin || c == target {
 					break
 				}
 			}
