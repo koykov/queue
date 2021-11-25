@@ -111,7 +111,7 @@ func (q *Queue) init() {
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
 	q.SetBit(flagLeaky, c.DLQ != nil)
 
-	q.wmax = q.rtWorkersMax()
+	q.wmax = q.workersMaxDaily()
 	var workersMin, workersMax uint32
 	workersMin, workersMax, _, _, q.schedID = q.rtParams()
 
@@ -341,7 +341,7 @@ func (q *Queue) calibrate(force bool) {
 	}
 }
 
-func (q *Queue) rtWorkersMax() uint32 {
+func (q *Queue) workersMaxDaily() uint32 {
 	sched, conf := uint32(0), q.c().WorkersMax
 	if q.c().Schedule != nil {
 		sched = q.c().Schedule.workersMax()
