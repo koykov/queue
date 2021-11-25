@@ -20,15 +20,24 @@ const (
 	sigForceStop
 )
 
+// Worker implementation.
 type worker struct {
-	idx    uint32
+	// Index of worker in the pool.
+	// For logging purposes.
+	idx uint32
+	// Status of the worker.
 	status WorkerStatus
-	pause  chan struct{}
+	// Pause channel between put to sleep and stop.
+	pause chan struct{}
+	// Last signal timestamp.
 	lastTS int64
-	proc   Dequeuer
+	// Dequeuer instance.
+	proc Dequeuer
+	// Config of the queue.
 	config *Config
 }
 
+// Make new idle worker.
 func makeWorker(idx uint32, config *Config) *worker {
 	w := &worker{
 		idx:    idx,
@@ -40,6 +49,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 	return w
 }
 
+// Signal handler.
 func (w *worker) signal(sig signal) {
 	atomic.StoreInt64(&w.lastTS, time.Now().UnixNano())
 	switch sig {
@@ -54,25 +64,32 @@ func (w *worker) signal(sig signal) {
 	}
 }
 
+// Stream processing.
 func (w *worker) dequeue(stream stream) {
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
+			// Wait config.SleepTimeout.
 			<-w.pause
 		case WorkerStatusActive:
+			// Read item from the stream.
 			x, ok := <-stream
 			if !ok {
+				// Stream is closed. Immediately stop and exit.
 				w.stop(true)
 				return
 			}
+			// Forward item to dequeuer.
 			_ = w.proc.Dequeue(x)
 			w.m().QueuePull(w.k())
 		case WorkerStatusIdle:
+			// Exit on idle status.
 			return
 		}
 	}
 }
 
+// Start idle worker.
 func (w *worker) init() {
 	if w.l() != nil {
 		w.l().Printf("queue #%s worker #%d init\n", w.k(), w.idx)
@@ -81,6 +98,7 @@ func (w *worker) init() {
 	w.m().WorkerInit(w.k(), w.idx)
 }
 
+// Put worker to the sleep.
 func (w *worker) sleep() {
 	if w.l() != nil {
 		w.l().Printf("queue #%s worker #%d sleep\n", w.k(), w.idx)
@@ -89,6 +107,7 @@ func (w *worker) sleep() {
 	w.m().WorkerSleep(w.k(), w.idx)
 }
 
+// Wakeup sleeping worker.
 func (w *worker) wakeup() {
 	if w.l() != nil {
 		w.l().Printf("queue #%s worker #%d wakeup\n", w.k(), w.idx)
@@ -98,6 +117,7 @@ func (w *worker) wakeup() {
 	w.pause <- struct{}{}
 }
 
+// Stop (or force stop) worker.
 func (w *worker) stop(force bool) {
 	if w.l() != nil {
 		msg := "queue #%s worker #%d stop\n"
@@ -108,17 +128,21 @@ func (w *worker) stop(force bool) {
 	}
 	w.m().WorkerStop(w.k(), w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
+	// Notify pause channel about stop.
 	w.pause <- struct{}{}
 }
 
+// Set worker status.
 func (w *worker) setStatus(status WorkerStatus) {
 	atomic.StoreUint32((*uint32)(&w.status), uint32(status))
 }
 
+// Get worker status.
 func (w *worker) getStatus() WorkerStatus {
 	return WorkerStatus(atomic.LoadUint32((*uint32)(&w.status)))
 }
 
+// Check if worker slept enough time.
 func (w *worker) sleptEnough() bool {
 	dur := time.Duration(time.Now().UnixNano() - atomic.LoadInt64(&w.lastTS))
 	return dur >= w.c().SleepTimeout
