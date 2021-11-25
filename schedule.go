@@ -17,14 +17,18 @@ const (
 	msHour   = 60 * msMin
 )
 
+// Schedule describes time ranges with specific queue params.
 type Schedule struct {
 	buf []schedRule
 	srt bool
 }
 
 type schedRule struct {
+	// Left and right daily timestamps.
 	lt, rt uint32
+	// Min and max workers numbers for time range between lt and rt.
 	wn, wx uint32
+	// Wakeup and sleep factors for time range between lt and rt.
 	wf, sf float32
 }
 
@@ -34,19 +38,20 @@ var (
 	reHM    = regexp.MustCompile(`(\d{2}):(\d{2})`)
 )
 
+// NewSchedule makes new schedule instance.
+// Don't share it among many queues.
 func NewSchedule() *Schedule {
 	s := &Schedule{}
 	return s
 }
 
-func (s *Schedule) sort() {
-	if s.srt == true {
-		return
-	}
-	s.srt = true
-	sort.Sort(s)
-}
-
+// AddRange registers specific params for given time range.
+// Raw specifies time range in format `<left time>-<right time>`. Time point may be in three formats:
+// * HH:MM
+// * HH:MM:SS
+// * HH:MM:SS.MSC (msc is a millisecond 0-999).
+// All time ranges outside registered will use default params specified in config (WorkersMin, WorkersMax, WakeupFactor
+// and SleepFactor).
 func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFactor, sleepFactor float32) (err error) {
 	if workersMax == 0 {
 		return ErrSchedZeroMax
@@ -76,6 +81,7 @@ func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFac
 	if rt < lt {
 		return ErrSchedBadRange
 	}
+	s.srt = false
 	s.buf = append(s.buf, schedRule{
 		lt: lt,
 		rt: rt,
@@ -87,6 +93,8 @@ func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFac
 	return nil
 }
 
+// Get returns queue params if current time hits to the one of registered ranges.
+// Param schedID indicates which time range hits and contains -1 on miss.
 func (s *Schedule) Get() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
 	l := len(s.buf)
 	if l == 0 {
@@ -108,66 +116,7 @@ func (s *Schedule) Get() (workersMin, workersMax uint32, wakeupFactor, sleepFact
 	return
 }
 
-func (s *Schedule) workersMax() (max uint32) {
-	l := len(s.buf)
-	if l == 0 {
-		return 0
-	}
-	_ = s.buf[l-1]
-	for i := 0; i < l; i++ {
-		if s.buf[i].wx > max {
-			max = s.buf[i].wx
-		}
-	}
-	return
-}
-
-func (s *Schedule) Len() int {
-	return len(s.buf)
-}
-
-func (s *Schedule) Less(i, j int) bool {
-	return s.buf[i].lt < s.buf[j].lt
-}
-
-func (s *Schedule) Swap(i, j int) {
-	s.buf[i], s.buf[j] = s.buf[j], s.buf[i]
-}
-
-func (s *Schedule) Copy() *Schedule {
-	s.sort()
-	cpy := &Schedule{}
-	cpy.buf = append(cpy.buf, s.buf...)
-	return cpy
-}
-
-func (s *Schedule) String() string {
-	s.sort()
-	var buf bytes.Buffer
-	_, _ = buf.WriteString("[\n")
-	for i := 0; i < len(s.buf); i++ {
-		r := s.buf[i]
-		_ = buf.WriteByte('\t')
-		_, _ = buf.WriteString(s.fmtTime(r.lt))
-		_ = buf.WriteByte('-')
-		_, _ = buf.WriteString(s.fmtTime(r.rt))
-		_, _ = buf.WriteString(" min: ")
-		_, _ = buf.WriteString(strconv.Itoa(int(r.wn)))
-		_, _ = buf.WriteString(" max: ")
-		_, _ = buf.WriteString(strconv.Itoa(int(r.wx)))
-		_, _ = buf.WriteString(" wakeup: ")
-		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.wf), 'f', -1, 32))
-		_, _ = buf.WriteString(" sleep: ")
-		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.sf), 'f', -1, 32))
-		if i > 0 {
-			_ = buf.WriteByte(',')
-		}
-		_ = buf.WriteByte('\n')
-	}
-	_ = buf.WriteByte(']')
-	return buf.String()
-}
-
+// Parse and convert time point to daily timestamp.
 func (s *Schedule) parse(raw string, target int) (t uint32, err error) {
 	var h, m, sc, ms int
 	if raw == "*" {
@@ -215,6 +164,49 @@ func (s *Schedule) parse(raw string, target int) (t uint32, err error) {
 	return
 }
 
+// Get maximum number of workers from registered time ranges.
+func (s *Schedule) workersMax() (max uint32) {
+	l := len(s.buf)
+	if l == 0 {
+		return 0
+	}
+	_ = s.buf[l-1]
+	for i := 0; i < l; i++ {
+		if s.buf[i].wx > max {
+			max = s.buf[i].wx
+		}
+	}
+	return
+}
+
+func (s *Schedule) String() string {
+	s.sort()
+	var buf bytes.Buffer
+	_, _ = buf.WriteString("[\n")
+	for i := 0; i < len(s.buf); i++ {
+		r := s.buf[i]
+		_ = buf.WriteByte('\t')
+		_, _ = buf.WriteString(s.fmtTime(r.lt))
+		_ = buf.WriteByte('-')
+		_, _ = buf.WriteString(s.fmtTime(r.rt))
+		_, _ = buf.WriteString(" min: ")
+		_, _ = buf.WriteString(strconv.Itoa(int(r.wn)))
+		_, _ = buf.WriteString(" max: ")
+		_, _ = buf.WriteString(strconv.Itoa(int(r.wx)))
+		_, _ = buf.WriteString(" wakeup: ")
+		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.wf), 'f', -1, 32))
+		_, _ = buf.WriteString(" sleep: ")
+		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.sf), 'f', -1, 32))
+		if i > 0 {
+			_ = buf.WriteByte(',')
+		}
+		_ = buf.WriteByte('\n')
+	}
+	_ = buf.WriteByte(']')
+	return buf.String()
+}
+
+// Format daily timestamp to time point.
 func (s *Schedule) fmtTime(t uint32) string {
 	h := t / msHour
 	t = t % msHour
@@ -224,4 +216,33 @@ func (s *Schedule) fmtTime(t uint32) string {
 	t = t % msSec
 	ms := t
 	return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, sc, ms)
+}
+
+// Copy copies schedule instance to protect queue from changing params after start.
+// It means that after starting queue all schedule modifications will have no effect.
+func (s *Schedule) Copy() *Schedule {
+	s.sort()
+	cpy := &Schedule{}
+	cpy.buf = append(cpy.buf, s.buf...)
+	return cpy
+}
+
+func (s *Schedule) sort() {
+	if s.srt == true {
+		return
+	}
+	s.srt = true
+	sort.Sort(s)
+}
+
+func (s *Schedule) Len() int {
+	return len(s.buf)
+}
+
+func (s *Schedule) Less(i, j int) bool {
+	return s.buf[i].lt < s.buf[j].lt
+}
+
+func (s *Schedule) Swap(i, j int) {
+	s.buf[i], s.buf[j] = s.buf[j], s.buf[i]
 }

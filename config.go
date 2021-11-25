@@ -21,17 +21,23 @@ const (
 // Config describes queue properties and behavior.
 type Config struct {
 	// Unique queue key. Indicates queue in logs and metrics.
+	// Mandatory param.
 	Key string
 	// Queue capacity.
+	// Mandatory param.
 	Size uint64
 	// Simultaneous enqueue operation limit to start force calibration.
 	// Works only on balanced queues.
+	// If this param omit defaultForceCalibrationLimit (1000) will use instead.
 	ForceCalibrationLimit uint32
 	// Workers number.
-	// Setting this param disables balancing feature. If you want to have balancing use params WorkersMin/WorkersMax
+	// Setting this param disables balancing feature. If you want to have balancing use params WorkersMin and WorkersMax
 	// instead.
 	Workers uint32
 	// Heartbeat rate interval. Need to perform service operation like queue calibration, workers handling, etc.
+	// Setting this param too big (greater than 1 second) is counterproductive - the queue will rarely calibrate and
+	// result may be insufficient good.
+	// If this param omit defaultHeartbeat (1 second) will use instead.
 	Heartbeat time.Duration
 
 	// Minimum workers number.
@@ -42,17 +48,22 @@ type Config struct {
 	WorkersMax uint32
 	// Worker wake up factor in dependency of queue fullness rate.
 	// When queue fullness rate will exceed that factor, then first available slept worker will wake.
+	// If this param omit defaultWakeupFactor (0.75) will use instead.
 	WakeupFactor float32
 	// Worker sleep factor in dependency of queue fullness rate.
 	// When queue fullness rate will less than  that factor, one of active workers will put to sleep.
+	// If this param omit defaultSleepFactor (0.5) will use instead.
 	SleepFactor float32
 	// How long slept worker will wait until stop.
+	// If this param omit defaultSleepTimeout (5 seconds) will use instead.
 	SleepTimeout time.Duration
 
 	// Schedule contains base params (like workers min/max and factors) for specific time ranges.
+	// See schedule.go for usage examples.
 	Schedule *Schedule
 
 	// Dequeuer is a worker's dequeue helper.
+	// Mandatory param.
 	Dequeuer Dequeuer
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
@@ -65,7 +76,8 @@ type Config struct {
 	Logger Logger
 }
 
-// Copy copies config instance to protect queue from changing params in runtime.
+// Copy copies config instance to protect queue from changing params after start.
+// It means that after starting queue all config modifications will have no effect.
 func (c *Config) Copy() *Config {
 	cpy := *c
 	if c.Schedule != nil {
