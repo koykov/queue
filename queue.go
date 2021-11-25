@@ -22,41 +22,63 @@ const (
 	flagLeaky    = 1
 )
 
-type stream chan interface{}
-
+// Queue is an implementation of balanced leaky queue.
+//
+// The queue balances among available workers [Config.WorkersMin...Config.WorkersMax] in realtime.
+// Queue also has leaky feature: when queue is full and new items continue to flow, then leaked items will forward to
+// DLQ (dead letter queue).
+// For queues with variadic daily load exists special scheduler (see schedule.go) that allow to specify variadic queue
+// params for certain time ranges.
 type Queue struct {
 	bitset.Bitset
-	config  *Config
+	// Config instance.
+	config *Config
+	// ID of actual schedule rule. Contains -1 by default (no rule found).
 	schedID int
-	wmax    uint32
+	// The number of maximum workers that queue may contain considering all schedule rules and config params.
+	wmax uint32
 
+	// Actual queue status.
 	status Status
+	// Internal items stream.
 	stream stream
 
-	mux     sync.Mutex
+	mux sync.Mutex
+	// Workers pool.
 	workers []*worker
 
 	once sync.Once
 
+	// Counter of active workers.
 	workersUp int32
-	c9nlock   uint32
-	spinlock  int64
-	enqlock   int64
+	// Calibration lock counter.
+	c9nlock uint32
+	// Spinlock of queue.
+	spinlock int64
+	// Enqueue lock counter.
+	enqlock int64
 
 	Err error
 }
 
+// Items stream.
+type stream chan interface{}
+
+// New makes new queue instance and initialize it according config params.
 func New(config *Config) (*Queue, error) {
 	q := &Queue{
+		// Make a copy of config instance to protect queue from changing params after start.
 		config: config.Copy(),
 	}
 	q.once.Do(q.init)
 	return q, q.Err
 }
 
+// Init queue.
 func (q *Queue) init() {
 	c := q.config
 
+	// Check mandatory params.
 	if len(c.Key) == 0 {
 		q.Err = ErrNoKey
 		q.status = StatusFail
@@ -74,18 +96,19 @@ func (q *Queue) init() {
 	}
 
 	if c.MetricsWriter == nil {
+		// Use dummy MW.
 		c.MetricsWriter = &DummyMetrics{}
 	}
 
-	if c.ForceCalibrationLimit == 0 {
-		c.ForceCalibrationLimit = defaultForceCalibrationLimit
-	}
-
+	// Check workers numbers params.
 	if c.Workers > 0 && c.WorkersMin == 0 {
 		c.WorkersMin = c.Workers
 	}
 	if c.Workers > 0 && c.WorkersMax == 0 {
 		c.WorkersMax = c.Workers
+	}
+	if c.WorkersMax < c.WorkersMin {
+		c.WorkersMin = c.WorkersMax
 	}
 	if c.WorkersMax == 0 {
 		q.Err = ErrNoWorker
@@ -93,6 +116,10 @@ func (q *Queue) init() {
 		return
 	}
 
+	// Check non-mandatory params and set default values if needed.
+	if c.ForceCalibrationLimit == 0 {
+		c.ForceCalibrationLimit = defaultForceCalibrationLimit
+	}
 	if c.WakeupFactor <= 0 {
 		c.WakeupFactor = defaultWakeupFactor
 	}
@@ -105,16 +132,23 @@ func (q *Queue) init() {
 	if c.SleepTimeout == 0 {
 		c.SleepTimeout = defaultSleepTimeout
 	}
+	if c.Heartbeat == 0 {
+		c.Heartbeat = defaultHeartbeat
+	}
 
+	// Create the stream.
 	q.stream = make(stream, c.Size)
 
+	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
 	q.SetBit(flagLeaky, c.DLQ != nil)
 
+	// Check initial params.
 	q.wmax = q.workersMaxDaily()
 	var workersMin, workersMax uint32
 	workersMin, workersMax, _, _, q.schedID = q.rtParams()
 
+	// Make workers pool/
 	q.workers = make([]*worker, q.wmax)
 	var i uint32
 	for i = 0; i < q.wmax; i++ {
@@ -123,23 +157,24 @@ func (q *Queue) init() {
 	}
 	q.m().WorkerSetup(q.k(), 0, 0, uint(workersMax))
 
+	// Start [0...workersMin] workers.
 	for i = 0; i < workersMin; i++ {
 		q.workers[i].signal(sigInit)
 		go q.workers[i].dequeue(q.stream)
 	}
 	q.workersUp = int32(workersMin)
 
-	if c.Heartbeat == 0 {
-		c.Heartbeat = defaultHeartbeat
-	}
 	if q.CheckBit(flagBalanced) {
+		// Init background heartbeat ticker.
 		tickerHB := time.NewTicker(c.Heartbeat)
 		go func() {
 			for {
 				select {
 				case <-tickerHB.C:
+					// Calibrate queue on each tick in regular mode.
 					q.calibrate(false)
 					if q.Rate() == 0 && q.getStatus() == StatusClose {
+						// Exit on empty stopped queue.
 						return
 					}
 				}
@@ -147,12 +182,15 @@ func (q *Queue) init() {
 		}()
 	}
 
+	// Queue is ready!
 	q.setStatus(StatusActive)
 }
 
+// Enqueue puts x to the queue.
 func (q *Queue) Enqueue(x interface{}) bool {
 	q.once.Do(q.init)
-	if q.getStatus() == StatusClose {
+	// Check if enqueue is possible.
+	if status := q.getStatus(); status == StatusClose || status == StatusFail {
 		return false
 	}
 
@@ -161,40 +199,56 @@ func (q *Queue) Enqueue(x interface{}) bool {
 
 	if q.CheckBit(flagBalanced) {
 		defer atomic.AddInt64(&q.spinlock, -1)
+		// Consider spinlock and calibration limit on balanced queue.
 		if atomic.AddInt64(&q.spinlock, 1) >= int64(q.c().ForceCalibrationLimit) {
 			q.calibrate(true)
 		}
 	}
 	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
+		// Put item to the stream in leaky mode.
 		select {
 		case q.stream <- x:
 			return true
 		default:
+			// Leak the item to DLQ.
 			q.c().DLQ.Enqueue(x)
 			q.m().QueueLeak(q.k())
 			return false
 		}
 	} else {
+		// Regular put (blocking mode).
 		q.stream <- x
 		return true
 	}
 }
 
+// Rate returns a fullness rate of the queue.
 func (q *Queue) Rate() float32 {
 	return float32(len(q.stream)) / float32(cap(q.stream))
 }
 
+// Close gracefully stops the queue.
+//
+// After receiving of close signal at least workersMin number of workers will work so long as queue has items.
+// Enqueue of new items to queue will forbid.
 func (q *Queue) Close() {
 	if q.l() != nil {
 		q.l().Printf("queue #%s caught close signal", q.k())
 	}
+	// Set the status.
 	q.setStatus(StatusClose)
+	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
+	// Close the stream.
+	// Please note, this is not the end. Workers continue works while queue has items.
 	close(q.stream)
 }
 
+// ForceClose closes the queue and immediately stops all active and sleeping workers.
+//
+// Items in the queue will drop on the floor.
 func (q *Queue) ForceClose() {
 	if q.l() != nil {
 		q.l().Printf("queue #%s caught force close signal", q.k())
@@ -202,18 +256,22 @@ func (q *Queue) ForceClose() {
 	// todo implement me
 }
 
+// Internal calibration helper.
 func (q *Queue) calibrate(force bool) {
 	// Check calibration lock before mutex lock.
 	if atomic.LoadUint32(&q.c9nlock) == 1 {
+		// Calibration is busy.
 		return
 	}
 
 	q.mux.Lock()
 	defer func() {
+		// Release calibration lock.
 		atomic.StoreUint32(&q.c9nlock, 0)
 		q.mux.Unlock()
 	}()
 
+	// Calibration is acquired.
 	atomic.StoreUint32(&q.c9nlock, 1)
 
 	// Reset spinlock immediately to reduce amount of threads waiting for calibrate.
@@ -228,7 +286,7 @@ func (q *Queue) calibrate(force bool) {
 		q.l().Printf(msg, q.k(), rate, atomic.LoadInt32(&q.workersUp))
 	}
 
-	// Stop pre-sleeping workers.
+	// Check and stop pre-sleeping workers.
 	for i := q.c().WorkersMax - 1; i >= q.c().WorkersMin; i-- {
 		if q.workers[i].getStatus() == WorkerStatusSleep && q.workers[i].sleptEnough() {
 			q.workers[i].signal(sigStop)
@@ -247,6 +305,9 @@ func (q *Queue) calibrate(force bool) {
 			q.l().Printf("queue #%s: switch to schedID %d (workers %d/%d, wakeup factor %f, sleep factor %f)",
 				q.k(), schedID, workersMin, workersMax, wakeupFactor, sleepFactor)
 		}
+		// Stop all workers in range [wmax...workersMax].
+		// wmax is a number of maximum workers queue may have.
+		// workersMax is a maximum number of workers queue may have in current time range.
 		if q.wmax > workersMax {
 			for i := q.wmax - 1; i >= workersMax; i-- {
 				if q.workers[i].getStatus() == WorkerStatusActive {
@@ -255,7 +316,9 @@ func (q *Queue) calibrate(force bool) {
 				}
 			}
 		}
+		// Check new workersMin exceeds number of active workers.
 		if wu := uint32(q.getWorkersUp()); workersMin > wu {
+			// Start workersMin-workersUp workers to satisfy queue.
 			target := workersMin - wu
 			var c uint32
 			for i := uint32(0); i < q.wmax; i++ {
@@ -275,6 +338,7 @@ func (q *Queue) calibrate(force bool) {
 				}
 			}
 		}
+		// Calculate actual numbers of active, sleeping and idle workers.
 		var active, sleep, idle uint
 		for i := uint32(0); i < workersMax; i++ {
 			switch q.workers[i].getStatus() {
@@ -286,18 +350,21 @@ func (q *Queue) calibrate(force bool) {
 				active++
 			}
 		}
+		// Reinitialize workers counters in metrics.
 		q.m().WorkerSetup(q.k(), active, sleep, idle)
 	}
 
 	// Calibration issues.
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
+		// Queue is closed and empty. Force stops all active or sleeping workers.
 		for i := uint32(0); i < workersMax; i++ {
 			if ws := q.workers[i].getStatus(); ws == WorkerStatusActive || ws == WorkerStatusSleep {
 				q.workers[i].signal(sigForceStop)
 			}
 		}
 	case rate >= wakeupFactor:
+		// Queue fullness rate exceeds wakeupFactor. Need to start first available idle or sleeping worker.
 		if uint32(q.getWorkersUp()) == workersMax {
 			return
 		}
@@ -313,13 +380,16 @@ func (q *Queue) calibrate(force bool) {
 				q.workers[i].signal(sigWakeup)
 			}
 			atomic.AddInt32(&q.workersUp, 1)
+			// By default, only one worker starts at once. That's why need to keep heartbeat param enough small (<=1s).
 			break
 		}
 	case rate <= sleepFactor:
+		// Queue fullness rate fell less than sleep factor. So need to put worker(-s) to sleep.
 		if uint32(q.getWorkersUp()) == workersMin {
 			return
 		}
 		var target, c int32
+		// Workers put to sleep by chunks of workersUp / 2.
 		if target = q.getWorkersUp() / 2; target == 0 {
 			target = 1
 		}
@@ -333,14 +403,17 @@ func (q *Queue) calibrate(force bool) {
 			}
 		}
 	case rate == 1:
+		// Queue is full and throttled.
 		q.setStatus(StatusThrottle)
 	default:
+		// Restore active status after throttle.
 		if q.getStatus() == StatusThrottle {
 			q.setStatus(StatusActive)
 		}
 	}
 }
 
+// Get number maximum workers that queue may contain considering all schedule rules and config params.
 func (q *Queue) workersMaxDaily() uint32 {
 	sched, conf := uint32(0), q.c().WorkersMax
 	if q.c().Schedule != nil {
@@ -352,6 +425,7 @@ func (q *Queue) workersMaxDaily() uint32 {
 	return conf
 }
 
+// Get realtime queue params according schedule rules.
 func (q *Queue) rtParams() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
 	c := q.c()
 	if c.Schedule != nil {
@@ -369,14 +443,17 @@ func (q *Queue) rtParams() (workersMin, workersMax uint32, wakeupFactor, sleepFa
 	return
 }
 
+// Get number of active workers.
 func (q *Queue) getWorkersUp() int32 {
 	return atomic.LoadInt32(&q.workersUp)
 }
 
+// Set status of the queue.
 func (q *Queue) setStatus(status Status) {
 	atomic.StoreUint32((*uint32)(&q.status), uint32(status))
 }
 
+// Get status of the queue.
 func (q *Queue) getStatus() Status {
 	return Status(atomic.LoadUint32((*uint32)(&q.status)))
 }
