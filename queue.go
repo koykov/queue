@@ -180,6 +180,7 @@ func (q *Queue) init() {
 					// Calibrate queue on each tick in regular mode.
 					q.calibrate(false)
 					if q.Rate() == 0 && q.getStatus() == StatusClose {
+						tickerHB.Stop()
 						// Exit on empty stopped queue.
 						return
 					}
@@ -239,8 +240,26 @@ func (q *Queue) Rate() float32 {
 // After receiving of close signal at least workersMin number of workers will work so long as queue has items.
 // Enqueue of new items to queue will forbid.
 func (q *Queue) Close() {
+	q.close(false)
+}
+
+// ForceClose closes the queue and immediately stops all active and sleeping workers.
+//
+// Remaining items in the queue will throw to the trash.
+func (q *Queue) ForceClose() {
+	q.close(true)
+}
+
+func (q *Queue) close(force bool) {
+	if q.getStatus() == StatusClose {
+		return
+	}
 	if q.l() != nil {
-		q.l().Printf("queue #%s caught close signal", q.k())
+		msg := "queue #%s caught close signal"
+		if force {
+			msg = "queue #%s caught force close signal"
+		}
+		q.l().Printf(msg, q.k())
 	}
 	// Set the status.
 	q.setStatus(StatusClose)
@@ -248,18 +267,28 @@ func (q *Queue) Close() {
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	// Close the stream.
-	// Please note, this is not the end. Workers continue works while queue has items.
+	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
 	close(q.stream)
-}
 
-// ForceClose closes the queue and immediately stops all active and sleeping workers.
-//
-// Items in the queue will drop on the floor.
-func (q *Queue) ForceClose() {
-	if q.l() != nil {
-		q.l().Printf("queue #%s caught force close signal", q.k())
+	if force {
+		// Immediately stop all active/sleeping workers.
+		q.mux.Lock()
+		for i := int(q.wmax - 1); i >= 0; i-- {
+			switch q.workers[i].getStatus() {
+			case WorkerStatusActive:
+				q.workers[i].signal(sigForceStop)
+				atomic.AddInt32(&q.workersUp, -1)
+			case WorkerStatusSleep:
+				q.workers[i].signal(sigForceStop)
+			}
+		}
+		q.mux.Unlock()
+		// Throw all remaining items to the trash.
+		for len(q.stream) > 0 {
+			<-q.stream
+			q.m().QueueLost(q.k())
+		}
 	}
-	// todo implement me
 }
 
 // Internal calibration helper.

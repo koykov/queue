@@ -20,4 +20,6 @@ type MetricsWriter interface {
 	QueuePull(queue string)
 	// QueueLeak registers item's leak from the full queue.
 	QueueLeak(queue string)
+	// QueueLost registers lost items missed queue and DLQ.
+	QueueLost(queue string)
 }
