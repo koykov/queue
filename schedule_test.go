@@ -5,25 +5,25 @@ import "testing"
 func TestSchedule(t *testing.T) {
 	t.Run("min > max", func(t *testing.T) {
 		s := NewSchedule()
-		if err := s.AddRange("foobar", RealtimeParams{10, 8, 0, 0}); err != ErrSchedMinGtMax {
+		if err := s.AddRange("foobar", ScheduleParams{10, 8, 0, 0}); err != ErrSchedMinGtMax {
 			t.Errorf("bad error: need %s, got %s", ErrSchedMinGtMax, err)
 		}
 	})
 	t.Run("bad range", func(t *testing.T) {
 		s := NewSchedule()
-		if err := s.AddRange("foobar", RealtimeParams{0, 1, 0, 0}); err != ErrSchedBadRange {
+		if err := s.AddRange("foobar", ScheduleParams{0, 1, 0, 0}); err != ErrSchedBadRange {
 			t.Errorf("bad error: need %s, got %s", ErrSchedBadRange, err)
 		}
 	})
 	t.Run("bad range -20:00:00", func(t *testing.T) {
 		s := NewSchedule()
-		if err := s.AddRange("-20:00:00", RealtimeParams{0, 1, 0, 0}); err != ErrSchedBadRange {
+		if err := s.AddRange("-20:00:00", ScheduleParams{0, 1, 0, 0}); err != ErrSchedBadRange {
 			t.Errorf("bad error: need %s, got %s", ErrSchedBadRange, err)
 		}
 	})
 	t.Run("bad range 06:00:00-", func(t *testing.T) {
 		s := NewSchedule()
-		if err := s.AddRange("06:00:00-", RealtimeParams{0, 1, 0, 0}); err != ErrSchedBadRange {
+		if err := s.AddRange("06:00:00-", ScheduleParams{0, 1, 0, 0}); err != ErrSchedBadRange {
 			t.Errorf("bad error: need %s, got %s", ErrSchedBadRange, err)
 		}
 	})
@@ -38,7 +38,7 @@ func TestSchedule(t *testing.T) {
 		}
 		for _, r := range rules {
 			s := NewSchedule()
-			if err := s.AddRange(r, RealtimeParams{0, 1, .5, .1}); err != nil {
+			if err := s.AddRange(r, ScheduleParams{0, 1, .5, .1}); err != nil {
 				t.Error(err)
 			}
 			if s.String() != exp {
@@ -53,9 +53,9 @@ func TestSchedule(t *testing.T) {
 	16:00:30.000-18:05:32.000 min: 0 max: 1 wakeup: 0 sleep: 0,
 ]`
 		s := NewSchedule()
-		_ = s.AddRange("12:00-13:00", RealtimeParams{0, 1, 0, 0})
-		_ = s.AddRange("06:12:43-08:43:12", RealtimeParams{0, 1, 0, 0})
-		_ = s.AddRange("16:00:30-18:05:32", RealtimeParams{0, 1, 0, 0})
+		_ = s.AddRange("12:00-13:00", ScheduleParams{0, 1, 0, 0})
+		_ = s.AddRange("06:12:43-08:43:12", ScheduleParams{0, 1, 0, 0})
+		_ = s.AddRange("16:00:30-18:05:32", ScheduleParams{0, 1, 0, 0})
 		if s.String() != exp {
 			t.Error("sort failed")
 		}

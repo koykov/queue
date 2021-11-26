@@ -27,8 +27,11 @@ type schedRule struct {
 	// Left and right daily timestamps.
 	lt, rt uint32
 	// Params to use between lt and rt.
-	params RealtimeParams
+	params ScheduleParams
 }
+
+// ScheduleParams describes queue params for specific time range.
+type ScheduleParams realtimeParams
 
 var (
 	reHMSMs = regexp.MustCompile(`(\d{2}):(\d{2}):(\d{2})\.(\d{3})`)
@@ -50,7 +53,7 @@ func NewSchedule() *Schedule {
 // * HH:MM:SS.MSC (msc is a millisecond 0-999).
 // All time ranges outside registered will use default params specified in config (WorkersMin, WorkersMax, WakeupFactor
 // and SleepFactor).
-func (s *Schedule) AddRange(raw string, params RealtimeParams) (err error) {
+func (s *Schedule) AddRange(raw string, params ScheduleParams) (err error) {
 	if params.WorkersMax == 0 {
 		return ErrSchedZeroMax
 	}
@@ -89,7 +92,7 @@ func (s *Schedule) AddRange(raw string, params RealtimeParams) (err error) {
 
 // Get returns queue params if current time hits to the one of registered ranges.
 // Param schedID indicates which time range hits and contains -1 on miss.
-func (s *Schedule) Get() (params RealtimeParams, schedID int) {
+func (s *Schedule) Get() (params ScheduleParams, schedID int) {
 	l := len(s.buf)
 	if l == 0 {
 		return

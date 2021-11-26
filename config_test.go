@@ -14,9 +14,9 @@ func TestConfig(t *testing.T) {
 			return ap == bp, asp == bsp
 		}
 		sched := NewSchedule()
-		_ = sched.AddRange("12:00-13:00", RealtimeParams{4, 16, .25, .01})
-		_ = sched.AddRange("06:12:43-08:43:12", RealtimeParams{1, 4, .7, .25})
-		_ = sched.AddRange("16:00:30-18:05:32", RealtimeParams{2, 8, .15, .05})
+		_ = sched.AddRange("12:00-13:00", ScheduleParams{4, 16, .25, .01})
+		_ = sched.AddRange("06:12:43-08:43:12", ScheduleParams{1, 4, .7, .25})
+		_ = sched.AddRange("16:00:30-18:05:32", ScheduleParams{2, 8, .15, .05})
 		conf := &Config{
 			Key:          "foobar",
 			Size:         1e5,

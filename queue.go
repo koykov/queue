@@ -64,8 +64,8 @@ type Queue struct {
 // Items stream.
 type stream chan interface{}
 
-// RealtimeParams describes queue params for current time.
-type RealtimeParams struct {
+// realtimeParams describes queue params for current time.
+type realtimeParams struct {
 	WorkersMin, WorkersMax    uint32
 	WakeupFactor, SleepFactor float32
 }
@@ -151,7 +151,7 @@ func (q *Queue) init() {
 
 	// Check initial params.
 	q.wmax = q.workersMaxDaily()
-	var params RealtimeParams
+	var params realtimeParams
 	params, q.schedID = q.rtParams()
 
 	// Make workers pool/
@@ -301,7 +301,7 @@ func (q *Queue) calibrate(force bool) {
 
 	// Check schedID change.
 	var (
-		params  RealtimeParams
+		params  realtimeParams
 		schedID int
 	)
 	if params, schedID = q.rtParams(); schedID != q.schedID {
@@ -431,10 +431,12 @@ func (q *Queue) workersMaxDaily() uint32 {
 }
 
 // Get realtime queue params according schedule rules.
-func (q *Queue) rtParams() (params RealtimeParams, schedID int) {
+func (q *Queue) rtParams() (params realtimeParams, schedID int) {
 	c := q.c()
 	if c.Schedule != nil {
-		if params, schedID = c.Schedule.Get(); schedID != -1 {
+		var schedParams ScheduleParams
+		if schedParams, schedID = c.Schedule.Get(); schedID != -1 {
+			params = realtimeParams(schedParams)
 			if params.WakeupFactor == 0 {
 				params.WakeupFactor = c.WakeupFactor
 			}
