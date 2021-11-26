@@ -64,6 +64,12 @@ type Queue struct {
 // Items stream.
 type stream chan interface{}
 
+// RealtimeParams describes queue params for current time.
+type RealtimeParams struct {
+	WorkersMin, WorkersMax    uint32
+	WakeupFactor, SleepFactor float32
+}
+
 // New makes new queue instance and initialize it according config params.
 func New(config *Config) (*Queue, error) {
 	q := &Queue{
@@ -145,8 +151,8 @@ func (q *Queue) init() {
 
 	// Check initial params.
 	q.wmax = q.workersMaxDaily()
-	var workersMin, workersMax uint32
-	workersMin, workersMax, _, _, q.schedID = q.rtParams()
+	var params RealtimeParams
+	params, q.schedID = q.rtParams()
 
 	// Make workers pool/
 	q.workers = make([]*worker, q.wmax)
@@ -155,14 +161,14 @@ func (q *Queue) init() {
 		q.m().WorkerSleep(q.k(), i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	q.m().WorkerSetup(q.k(), 0, 0, uint(workersMax))
+	q.m().WorkerSetup(q.k(), 0, 0, uint(params.WorkersMax))
 
 	// Start [0...workersMin] workers.
-	for i = 0; i < workersMin; i++ {
+	for i = 0; i < params.WorkersMin; i++ {
 		q.workers[i].signal(sigInit)
 		go q.workers[i].dequeue(q.stream)
 	}
-	q.workersUp = int32(workersMin)
+	q.workersUp = int32(params.WorkersMin)
 
 	if q.CheckBit(flagBalanced) {
 		// Init background heartbeat ticker.
@@ -295,31 +301,30 @@ func (q *Queue) calibrate(force bool) {
 
 	// Check schedID change.
 	var (
-		workersMin, workersMax    uint32
-		wakeupFactor, sleepFactor float32
-		schedID                   int
+		params  RealtimeParams
+		schedID int
 	)
-	if workersMin, workersMax, wakeupFactor, sleepFactor, schedID = q.rtParams(); schedID != q.schedID {
+	if params, schedID = q.rtParams(); schedID != q.schedID {
 		q.schedID = schedID
 		if q.l() != nil {
 			q.l().Printf("queue #%s: switch to schedID %d (workers %d/%d, wakeup factor %f, sleep factor %f)",
-				q.k(), schedID, workersMin, workersMax, wakeupFactor, sleepFactor)
+				q.k(), schedID, params.WorkersMin, params.WorkersMax, params.WakeupFactor, params.SleepFactor)
 		}
-		// Stop all workers in range [wmax...workersMax].
+		// Stop all workers in range [workersMax...wmax].
 		// wmax is a number of maximum workers queue may have.
 		// workersMax is a maximum number of workers queue may have in current time range.
-		if q.wmax > workersMax {
-			for i := q.wmax - 1; i >= workersMax; i-- {
+		if q.wmax > params.WorkersMax {
+			for i := q.wmax - 1; i >= params.WorkersMax; i-- {
 				if q.workers[i].getStatus() == WorkerStatusActive {
 					q.workers[i].stop(true)
 					atomic.AddInt32(&q.workersUp, -1)
 				}
 			}
 		}
-		// Check new workersMin exceeds number of active workers.
-		if wu := uint32(q.getWorkersUp()); workersMin > wu {
-			// Start workersMin-workersUp workers to satisfy queue.
-			target := workersMin - wu
+		// Check new params.WorkersMin exceeds number of active workers.
+		if wu := uint32(q.getWorkersUp()); params.WorkersMin > wu {
+			// Start params.WorkersMin-workersUp workers to satisfy queue.
+			target := params.WorkersMin - wu
 			var c uint32
 			for i := uint32(0); i < q.wmax; i++ {
 				switch q.workers[i].getStatus() {
@@ -340,7 +345,7 @@ func (q *Queue) calibrate(force bool) {
 		}
 		// Calculate actual numbers of active, sleeping and idle workers.
 		var active, sleep, idle uint
-		for i := uint32(0); i < workersMax; i++ {
+		for i := uint32(0); i < params.WorkersMax; i++ {
 			switch q.workers[i].getStatus() {
 			case WorkerStatusIdle:
 				idle++
@@ -358,17 +363,17 @@ func (q *Queue) calibrate(force bool) {
 	switch {
 	case rate == 0 && q.getStatus() == StatusClose:
 		// Queue is closed and empty. Force stops all active or sleeping workers.
-		for i := uint32(0); i < workersMax; i++ {
+		for i := uint32(0); i < params.WorkersMax; i++ {
 			if ws := q.workers[i].getStatus(); ws == WorkerStatusActive || ws == WorkerStatusSleep {
 				q.workers[i].signal(sigForceStop)
 			}
 		}
-	case rate >= wakeupFactor:
+	case rate >= params.WakeupFactor:
 		// Queue fullness rate exceeds wakeupFactor. Need to start first available idle or sleeping worker.
-		if uint32(q.getWorkersUp()) == workersMax {
+		if uint32(q.getWorkersUp()) == params.WorkersMax {
 			return
 		}
-		for i := workersMin; i < workersMax; i++ {
+		for i := params.WorkersMin; i < params.WorkersMax; i++ {
 			ws := q.workers[i].getStatus()
 			if ws == WorkerStatusActive {
 				continue
@@ -383,9 +388,9 @@ func (q *Queue) calibrate(force bool) {
 			// By default, only one worker starts at once. That's why need to keep heartbeat param enough small (<=1s).
 			break
 		}
-	case rate <= sleepFactor:
+	case rate <= params.SleepFactor:
 		// Queue fullness rate fell less than sleep factor. So need to put worker(-s) to sleep.
-		if uint32(q.getWorkersUp()) == workersMin {
+		if uint32(q.getWorkersUp()) == params.WorkersMin {
 			return
 		}
 		var target, c int32
@@ -393,11 +398,11 @@ func (q *Queue) calibrate(force bool) {
 		if target = q.getWorkersUp() / 2; target == 0 {
 			target = 1
 		}
-		for i := workersMax - 1; i >= workersMin; i-- {
+		for i := params.WorkersMax - 1; i >= params.WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
 				q.workers[i].signal(sigSleep)
 				c++
-				if uint32(atomic.AddInt32(&q.workersUp, -1)) == workersMin || c == target {
+				if uint32(atomic.AddInt32(&q.workersUp, -1)) == params.WorkersMin || c == target {
 					break
 				}
 			}
@@ -426,20 +431,24 @@ func (q *Queue) workersMaxDaily() uint32 {
 }
 
 // Get realtime queue params according schedule rules.
-func (q *Queue) rtParams() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
+func (q *Queue) rtParams() (params RealtimeParams, schedID int) {
 	c := q.c()
 	if c.Schedule != nil {
-		if workersMin, workersMax, wakeupFactor, sleepFactor, schedID = c.Schedule.Get(); schedID != -1 {
-			if wakeupFactor == 0 {
-				wakeupFactor = c.WakeupFactor
+		if params, schedID = c.Schedule.Get(); schedID != -1 {
+			if params.WakeupFactor == 0 {
+				params.WakeupFactor = c.WakeupFactor
 			}
-			if sleepFactor == 0 {
-				sleepFactor = c.SleepFactor
+			if params.SleepFactor == 0 {
+				params.SleepFactor = c.SleepFactor
 			}
 			return
 		}
 	}
-	workersMin, workersMax, wakeupFactor, sleepFactor, schedID = c.WorkersMin, c.WorkersMax, c.WakeupFactor, c.SleepFactor, -1
+	schedID = -1
+	params.WorkersMin = c.WorkersMin
+	params.WorkersMax = c.WorkersMax
+	params.WakeupFactor = c.WakeupFactor
+	params.SleepFactor = c.SleepFactor
 	return
 }
 

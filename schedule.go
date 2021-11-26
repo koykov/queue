@@ -26,10 +26,8 @@ type Schedule struct {
 type schedRule struct {
 	// Left and right daily timestamps.
 	lt, rt uint32
-	// Min and max workers numbers for time range between lt and rt.
-	wn, wx uint32
-	// Wakeup and sleep factors for time range between lt and rt.
-	wf, sf float32
+	// Params to use between lt and rt.
+	params RealtimeParams
 }
 
 var (
@@ -52,11 +50,11 @@ func NewSchedule() *Schedule {
 // * HH:MM:SS.MSC (msc is a millisecond 0-999).
 // All time ranges outside registered will use default params specified in config (WorkersMin, WorkersMax, WakeupFactor
 // and SleepFactor).
-func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFactor, sleepFactor float32) (err error) {
-	if workersMax == 0 {
+func (s *Schedule) AddRange(raw string, params RealtimeParams) (err error) {
+	if params.WorkersMax == 0 {
 		return ErrSchedZeroMax
 	}
-	if workersMin > workersMax {
+	if params.WorkersMin > params.WorkersMax {
 		return ErrSchedMinGtMax
 	}
 
@@ -83,19 +81,15 @@ func (s *Schedule) AddRange(raw string, workersMin, workersMax uint32, wakeupFac
 	}
 	s.srt = false
 	s.buf = append(s.buf, schedRule{
-		lt: lt,
-		rt: rt,
-		wn: workersMin,
-		wx: workersMax,
-		wf: wakeupFactor,
-		sf: sleepFactor,
+		lt: lt, rt: rt,
+		params: params,
 	})
 	return nil
 }
 
 // Get returns queue params if current time hits to the one of registered ranges.
 // Param schedID indicates which time range hits and contains -1 on miss.
-func (s *Schedule) Get() (workersMin, workersMax uint32, wakeupFactor, sleepFactor float32, schedID int) {
+func (s *Schedule) Get() (params RealtimeParams, schedID int) {
 	l := len(s.buf)
 	if l == 0 {
 		return
@@ -109,7 +103,7 @@ func (s *Schedule) Get() (workersMin, workersMax uint32, wakeupFactor, sleepFact
 	for i := 0; i < l; i++ {
 		r := s.buf[i]
 		if r.lt <= t && r.rt > t {
-			workersMin, workersMax, wakeupFactor, sleepFactor, schedID = r.wn, r.wx, r.wf, r.sf, i
+			params, schedID = r.params, i
 			return
 		}
 	}
@@ -172,8 +166,8 @@ func (s *Schedule) workersMax() (max uint32) {
 	}
 	_ = s.buf[l-1]
 	for i := 0; i < l; i++ {
-		if s.buf[i].wx > max {
-			max = s.buf[i].wx
+		if s.buf[i].params.WorkersMax > max {
+			max = s.buf[i].params.WorkersMax
 		}
 	}
 	return
@@ -190,13 +184,13 @@ func (s *Schedule) String() string {
 		_ = buf.WriteByte('-')
 		_, _ = buf.WriteString(s.fmtTime(r.rt))
 		_, _ = buf.WriteString(" min: ")
-		_, _ = buf.WriteString(strconv.Itoa(int(r.wn)))
+		_, _ = buf.WriteString(strconv.Itoa(int(r.params.WorkersMin)))
 		_, _ = buf.WriteString(" max: ")
-		_, _ = buf.WriteString(strconv.Itoa(int(r.wx)))
+		_, _ = buf.WriteString(strconv.Itoa(int(r.params.WorkersMax)))
 		_, _ = buf.WriteString(" wakeup: ")
-		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.wf), 'f', -1, 32))
+		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.params.WakeupFactor), 'f', -1, 32))
 		_, _ = buf.WriteString(" sleep: ")
-		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.sf), 'f', -1, 32))
+		_, _ = buf.WriteString(strconv.FormatFloat(float64(r.params.SleepFactor), 'f', -1, 32))
 		if i > 0 {
 			_ = buf.WriteByte(',')
 		}
