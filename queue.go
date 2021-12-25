@@ -451,7 +451,7 @@ func (q *Queue) calibrate(force bool) {
 func (q *Queue) workersMaxDaily() uint32 {
 	sched, conf := uint32(0), q.c().WorkersMax
 	if q.c().Schedule != nil {
-		sched = q.c().Schedule.workersMax()
+		sched = q.c().Schedule.WorkersMaxDaily()
 	}
 	if sched > conf {
 		return sched

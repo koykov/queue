@@ -161,8 +161,8 @@ func (s *Schedule) parse(raw string, target int) (t uint32, err error) {
 	return
 }
 
-// Get maximum number of workers from registered time ranges.
-func (s *Schedule) workersMax() (max uint32) {
+// WorkersMaxDaily returns maximum number of workers from registered time ranges.
+func (s *Schedule) WorkersMaxDaily() (max uint32) {
 	l := len(s.buf)
 	if l == 0 {
 		return 0
