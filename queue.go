@@ -61,8 +61,13 @@ type Queue struct {
 	Err error
 }
 
+type item struct {
+	x   interface{}
+	rty uint32
+}
+
 // Items stream.
-type stream chan interface{}
+type stream chan item
 
 // realtimeParams describes queue params for current time.
 type realtimeParams struct {
@@ -166,7 +171,7 @@ func (q *Queue) init() {
 	// Start [0...workersMin] workers.
 	for i = 0; i < params.WorkersMin; i++ {
 		q.workers[i].signal(sigInit)
-		go q.workers[i].dequeue(q.stream)
+		go q.workers[i].dequeue(q)
 	}
 	q.workersUp = int32(params.WorkersMin)
 
@@ -215,7 +220,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
-		case q.stream <- x:
+		case q.stream <- item{x: x}:
 			return true
 		default:
 			// Leak the item to DLQ.
@@ -225,7 +230,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.stream <- x
+		q.stream <- item{x: x}
 		return true
 	}
 }
@@ -359,7 +364,7 @@ func (q *Queue) calibrate(force bool) {
 				switch q.workers[i].getStatus() {
 				case WorkerStatusIdle:
 					q.workers[i].signal(sigInit)
-					go q.workers[i].dequeue(q.stream)
+					go q.workers[i].dequeue(q)
 				case WorkerStatusSleep:
 					q.workers[i].signal(sigWakeup)
 				default:
@@ -409,7 +414,7 @@ func (q *Queue) calibrate(force bool) {
 			}
 			if ws == WorkerStatusIdle {
 				q.workers[i].signal(sigInit)
-				go q.workers[i].dequeue(q.stream)
+				go q.workers[i].dequeue(q)
 			} else {
 				q.workers[i].signal(sigWakeup)
 			}

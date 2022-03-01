@@ -65,23 +65,33 @@ func (w *worker) signal(sig signal) {
 }
 
 // Stream processing.
-func (w *worker) dequeue(stream stream) {
+func (w *worker) dequeue(queue *Queue) {
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
 			// Wait config.SleepTimeout.
 			<-w.pause
 		case WorkerStatusActive:
-			// Read item from the stream.
-			x, ok := <-stream
+			// Read itm from the stream.
+			itm, ok := <-queue.stream
 			if !ok {
 				// Stream is closed. Immediately stop and exit.
 				w.stop(true)
 				return
 			}
-			// Forward item to dequeuer.
-			_ = w.proc.Dequeue(x)
 			w.m().QueuePull(w.k())
+			// Forward itm to dequeuer.
+			if err := w.proc.Dequeue(itm.x); err != nil && w.c().MaxRetries > 0 {
+				// Processing failed.
+				if itm.rty < w.c().MaxRetries {
+					// Try to retry processing if possible.
+					// todo cover case with metrics
+					itm.rty++
+					queue.Enqueue(itm)
+				} else if queue.CheckBit(flagLeaky) {
+					w.c().DLQ.Enqueue(itm.x)
+				}
+			}
 		case WorkerStatusIdle:
 			// Exit on idle status.
 			return
