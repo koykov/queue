@@ -90,6 +90,7 @@ func (w *worker) dequeue(queue *Queue) {
 					queue.Enqueue(itm)
 				} else if queue.CheckBit(flagLeaky) {
 					w.c().DLQ.Enqueue(itm.x)
+					w.m().QueueLeak(w.k())
 				}
 			}
 		case WorkerStatusIdle:
