@@ -11,6 +11,7 @@ func (*DummyMetrics) WorkerWakeup(_ string, _ uint32)                       {}
 func (*DummyMetrics) WorkerStop(_ string, _ uint32, _ bool, _ WorkerStatus) {}
 func (*DummyMetrics) QueuePut(_ string)                                     {}
 func (*DummyMetrics) QueuePull(_ string)                                    {}
+func (*DummyMetrics) QueueRetry(_ string)                                   {}
 func (*DummyMetrics) QueueLeak(_ string)                                    {}
 func (*DummyMetrics) QueueLost(_ string)                                    {}
 

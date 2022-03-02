@@ -18,6 +18,8 @@ type MetricsWriter interface {
 	QueuePut(queue string)
 	// QueuePull registers outgoing of item from the queue.
 	QueuePull(queue string)
+	// QueueRetry registers total amount of retries.
+	QueueRetry(queue string)
 	// QueueLeak registers item's leak from the full queue.
 	QueueLeak(queue string)
 	// QueueLost registers lost items missed queue and DLQ.

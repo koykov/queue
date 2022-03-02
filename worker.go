@@ -85,7 +85,7 @@ func (w *worker) dequeue(queue *Queue) {
 				// Processing failed.
 				if itm.rty < w.c().MaxRetries {
 					// Try to retry processing if possible.
-					// todo cover case with metrics
+					w.m().QueueRetry(w.k())
 					itm.rty++
 					queue.Enqueue(itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
