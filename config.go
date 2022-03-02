@@ -72,6 +72,9 @@ type Config struct {
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
 	DLQ DLQ
+	// Put failed items to DLQ.
+	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
+	FailToDLQ bool
 
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter

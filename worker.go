@@ -81,14 +81,14 @@ func (w *worker) dequeue(queue *Queue) {
 			}
 			w.m().QueuePull(w.k())
 			// Forward itm to dequeuer.
-			if err := w.proc.Dequeue(itm.x); err != nil && w.c().MaxRetries > 0 {
+			if err := w.proc.Dequeue(itm.x); err != nil {
 				// Processing failed.
 				if itm.rty < w.c().MaxRetries {
 					// Try to retry processing if possible.
 					// todo cover case with metrics
 					itm.rty++
 					queue.Enqueue(itm)
-				} else if queue.CheckBit(flagLeaky) {
+				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					w.c().DLQ.Enqueue(itm.x)
 					w.m().QueueLeak(w.k())
 				}
