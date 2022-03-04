@@ -276,7 +276,7 @@ func (q *Queue) close(force bool) {
 	}
 	// Set the status.
 	q.setStatus(StatusClose)
-	// Wait till all renqueue operations will finish.
+	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	// Close the stream.
