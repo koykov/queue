@@ -87,7 +87,7 @@ func (w *worker) dequeue(queue *Queue) {
 					// Try to retry processing if possible.
 					w.m().QueueRetry(w.k())
 					itm.rty++
-					queue.Enqueue(itm)
+					queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					w.c().DLQ.Enqueue(itm.x)
 					w.m().QueueLeak(w.k())

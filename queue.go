@@ -61,6 +61,7 @@ type Queue struct {
 	Err error
 }
 
+// item is a wrapper for queue element with retries count.
 type item struct {
 	x   interface{}
 	rty uint32
@@ -216,21 +217,28 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			q.calibrate(true)
 		}
 	}
+	itm := item{x: x}
+	return q.renqueue(&itm)
+}
+
+// Put wrapped item to the queue.
+// This method also uses for enqueue retries (according MaxRetries param).
+func (q *Queue) renqueue(itm *item) bool {
 	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
-		case q.stream <- item{x: x}:
+		case q.stream <- *itm:
 			return true
 		default:
 			// Leak the item to DLQ.
-			q.c().DLQ.Enqueue(x)
+			q.c().DLQ.Enqueue(itm.x)
 			q.m().QueueLeak(q.k())
 			return false
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.stream <- item{x: x}
+		q.stream <- *itm
 		return true
 	}
 }
@@ -268,7 +276,7 @@ func (q *Queue) close(force bool) {
 	}
 	// Set the status.
 	q.setStatus(StatusClose)
-	// Wait till all enqueue operations will finish.
+	// Wait till all renqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
 	// Close the stream.
