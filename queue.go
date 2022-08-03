@@ -20,7 +20,6 @@ const (
 
 	flagBalanced = 0
 	flagLeaky    = 1
-	flagDE       = 2
 )
 
 // Queue is an implementation of balanced leaky queue.
@@ -160,7 +159,6 @@ func (q *Queue) init() {
 	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
 	q.SetBit(flagLeaky, c.DLQ != nil)
-	q.SetBit(flagDE, c.Delay > 0)
 
 	// Check initial params.
 	q.wmax = q.workersMaxDaily()
