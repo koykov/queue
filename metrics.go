@@ -15,7 +15,7 @@ type MetricsWriter interface {
 	// WorkerWakeup registers when slept worker resumes.
 	WorkerWakeup(queue string, idx uint32)
 	// WorkerWait registers how many worker waits due to delayed execution.
-	WorkerWait(queue string, dur time.Duration)
+	WorkerWait(queue string, idx uint32, dur time.Duration)
 	// WorkerStop registers when sleeping worker stops.
 	WorkerStop(queue string, idx uint32, force bool, status WorkerStatus)
 	// QueuePut registers income of new item to the queue.

@@ -87,7 +87,7 @@ func (w *worker) dequeue(queue *Queue) {
 				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					time.Sleep(delta)
-					w.m().WorkerWait(w.k(), delta)
+					w.m().WorkerWait(w.k(), w.idx, delta)
 				}
 			}
 
