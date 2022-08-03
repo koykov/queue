@@ -1,5 +1,7 @@
 package blqueue
 
+import "time"
+
 // MetricsWriter is an interface of metrics handler.
 // See example of implementations https://github.com/koykov/metrics_writers/tree/master/blqueue.
 type MetricsWriter interface {
@@ -12,6 +14,8 @@ type MetricsWriter interface {
 	WorkerSleep(queue string, idx uint32)
 	// WorkerWakeup registers when slept worker resumes.
 	WorkerWakeup(queue string, idx uint32)
+	// WorkerWait registers how many worker waits due to delayed execution.
+	WorkerWait(queue string, dur time.Duration)
 	// WorkerStop registers when sleeping worker stops.
 	WorkerStop(queue string, idx uint32, force bool, status WorkerStatus)
 	// QueuePut registers income of new item to the queue.
