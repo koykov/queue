@@ -84,7 +84,7 @@ func (w *worker) dequeue(queue *Queue) {
 			// Check delayed execution.
 			if itm.utn > 0 {
 				now := queue.clk().Now().UnixNano()
-				if delta := w.c().Delay - time.Duration(now-itm.utn); delta > 0 {
+				if delta := time.Duration(itm.utn - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					time.Sleep(delta)
 				}

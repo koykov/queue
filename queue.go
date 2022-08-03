@@ -208,6 +208,21 @@ func (q *Queue) init() {
 
 // Enqueue puts x to the queue.
 func (q *Queue) Enqueue(x interface{}) bool {
+	return q.denqueue(x, q.c().Delay)
+}
+
+// Denqueue puts x to the queue and forced delayed execution.
+func (q *Queue) Denqueue(x interface{}, delay time.Duration) bool {
+	return q.denqueue(x, delay)
+}
+
+// Ndenqueue puts x to the queue and disable delayed execution even if DE enabled by config.
+func (q *Queue) Ndenqueue(x interface{}) bool {
+	return q.denqueue(x, 0)
+}
+
+// Prepare item to wrap and put to the queue.
+func (q *Queue) denqueue(x interface{}, delay time.Duration) bool {
 	q.once.Do(q.init)
 	// Check if enqueue is possible.
 	if status := q.getStatus(); status == StatusClose || status == StatusFail {
@@ -224,17 +239,16 @@ func (q *Queue) Enqueue(x interface{}) bool {
 			q.calibrate(true)
 		}
 	}
-	itm := item{x: x}
+	itm := item{
+		x:   x,
+		utn: q.clk().Now().Add(delay).UnixNano(),
+	}
 	return q.renqueue(&itm)
 }
 
 // Put wrapped item to the queue.
 // This method also uses for enqueue retries (according MaxRetries param).
 func (q *Queue) renqueue(itm *item) bool {
-	if q.CheckBit(flagDE) {
-		itm.utn = q.clk().Now().UnixNano()
-	}
-
 	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
