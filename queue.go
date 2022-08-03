@@ -64,9 +64,9 @@ type Queue struct {
 
 // item is a wrapper for queue element with retries count.
 type item struct {
-	x   interface{}
-	rty uint32
-	utn int64
+	payload interface{}
+	retries uint32
+	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
 }
 
 // Items stream.
@@ -240,8 +240,8 @@ func (q *Queue) denqueue(x interface{}, delay time.Duration) bool {
 		}
 	}
 	itm := item{
-		x:   x,
-		utn: q.clk().Now().Add(delay).UnixNano(),
+		payload: x,
+		dexpire: q.clk().Now().Add(delay).UnixNano(),
 	}
 	return q.renqueue(&itm)
 }
@@ -257,7 +257,7 @@ func (q *Queue) renqueue(itm *item) bool {
 			return true
 		default:
 			// Leak the item to DLQ.
-			q.c().DLQ.Enqueue(itm.x)
+			q.c().DLQ.Enqueue(itm.payload)
 			q.m().QueueLeak(q.k())
 			return false
 		}

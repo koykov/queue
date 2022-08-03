@@ -82,25 +82,25 @@ func (w *worker) dequeue(queue *Queue) {
 			w.m().QueuePull(w.k())
 
 			// Check delayed execution.
-			if itm.utn > 0 {
+			if itm.dexpire > 0 {
 				now := queue.clk().Now().UnixNano()
-				if delta := time.Duration(itm.utn - now); delta > 0 {
+				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					time.Sleep(delta)
 				}
 			}
 
 			// Forward itm to dequeuer.
-			if err := w.proc.Dequeue(itm.x); err != nil {
+			if err := w.proc.Dequeue(itm.payload); err != nil {
 				// Processing failed.
-				if itm.rty < w.c().MaxRetries {
+				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.
 					w.m().QueueRetry(w.k())
-					itm.rty++
-					itm.utn = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
+					itm.retries++
+					itm.dexpire = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
 					queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
-					w.c().DLQ.Enqueue(itm.x)
+					w.c().DLQ.Enqueue(itm.payload)
 					w.m().QueueLeak(w.k())
 				}
 			}
