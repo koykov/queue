@@ -20,6 +20,7 @@ const (
 
 	flagBalanced = 0
 	flagLeaky    = 1
+	flagDE       = 2
 )
 
 // Queue is an implementation of balanced leaky queue.
@@ -65,6 +66,7 @@ type Queue struct {
 type item struct {
 	x   interface{}
 	rty uint32
+	utn int64
 }
 
 // Items stream.
@@ -154,6 +156,7 @@ func (q *Queue) init() {
 	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
 	q.SetBit(flagLeaky, c.DLQ != nil)
+	q.SetBit(flagDE, c.Delay > 0)
 
 	// Check initial params.
 	q.wmax = q.workersMaxDaily()
@@ -224,6 +227,10 @@ func (q *Queue) Enqueue(x interface{}) bool {
 // Put wrapped item to the queue.
 // This method also uses for enqueue retries (according MaxRetries param).
 func (q *Queue) renqueue(itm *item) bool {
+	if q.CheckBit(flagDE) {
+		itm.utn = time.Now().UnixNano()
+	}
+
 	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.

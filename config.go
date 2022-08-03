@@ -76,6 +76,11 @@ type Config struct {
 	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
 	FailToDLQ bool
 
+	// Delay between item enqueue and processing.
+	// Settings this param enables delayed execution (DE) feature.
+	// DE guarantees that item will processed by worker after at least Delay time.
+	Delay time.Duration
+
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 
