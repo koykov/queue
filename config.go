@@ -81,6 +81,10 @@ type Config struct {
 	// DE guarantees that item will processed by worker after at least Delay time.
 	Delay time.Duration
 
+	// Clock represents clock keeper.
+	// If this param omit nativeClock will use instead (see clock.go).
+	Clock Clock
+
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 

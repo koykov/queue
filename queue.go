@@ -109,6 +109,10 @@ func (q *Queue) init() {
 		return
 	}
 
+	if c.Clock == nil {
+		c.Clock = nativeClock{}
+	}
+
 	if c.MetricsWriter == nil {
 		// Use dummy MW.
 		c.MetricsWriter = &DummyMetrics{}
@@ -228,7 +232,7 @@ func (q *Queue) Enqueue(x interface{}) bool {
 // This method also uses for enqueue retries (according MaxRetries param).
 func (q *Queue) renqueue(itm *item) bool {
 	if q.CheckBit(flagDE) {
-		itm.utn = time.Now().UnixNano()
+		itm.utn = q.clk().Now().UnixNano()
 	}
 
 	q.m().QueuePut(q.k())
@@ -582,6 +586,10 @@ func (q *Queue) c() *Config {
 
 func (q *Queue) k() string {
 	return q.config.Key
+}
+
+func (q *Queue) clk() Clock {
+	return q.config.Clock
 }
 
 func (q *Queue) m() MetricsWriter {
