@@ -6,7 +6,10 @@ It has the following features:
 * Put to sleep idle workers depending of queue's fullness rate.
 * Resume sleeping (or start idle) workers when fullness rate of the queue grows over the limit.
 * Use [leaky bucket](https://en.wikipedia.org/wiki/Leaky_bucket) algorithm on newly comes elements when queue is full.
-* Leaked elements puts to DLQ (dead letter queue) to perform some actions on them. 
+* Leaked elements puts to DLQ (dead letter queue) to perform some actions on them.
+* Retry items processing.
+* Schedule active workers count.
+* Delayed execution.
 
 ## See
 
