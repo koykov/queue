@@ -23,6 +23,9 @@ wc := NewWorkerComposer().Add(&worker0).
 	Add(&worker1).
 	...
         Add(&workerN)
+// or
+wc := NewWorkerComposer(&worker0, &worker1, ...)
+
 conf.Worker = &wc
 ```
 * Implement TransitWorker to route item to other queue
