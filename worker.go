@@ -20,7 +20,7 @@ const (
 	sigForceStop
 )
 
-// Worker implementation.
+// Internal worker implementation.
 type worker struct {
 	// Index of worker in the pool.
 	// For logging purposes.
@@ -49,7 +49,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 	return w
 }
 
-// Signal handler.
+// Send signal to worker.
 func (w *worker) signal(sig signal) {
 	atomic.StoreInt64(&w.lastTS, time.Now().UnixNano())
 	switch sig {
