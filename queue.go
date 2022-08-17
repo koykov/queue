@@ -205,26 +205,11 @@ func (q *Queue) init() {
 }
 
 // Enqueue puts x to the queue.
-func (q *Queue) Enqueue(x interface{}) bool {
-	return q.denqueue(x, q.c().Delay)
-}
-
-// Denqueue puts x to the queue and forced delayed execution.
-func (q *Queue) Denqueue(x interface{}, delay time.Duration) bool {
-	return q.denqueue(x, delay)
-}
-
-// Ndenqueue puts x to the queue and disable delayed execution even if DE enabled by config.
-func (q *Queue) Ndenqueue(x interface{}) bool {
-	return q.denqueue(x, 0)
-}
-
-// Prepare item to wrap and put to the queue.
-func (q *Queue) denqueue(x interface{}, delay time.Duration) bool {
+func (q *Queue) Enqueue(x interface{}) error {
 	q.once.Do(q.init)
 	// Check if enqueue is possible.
 	if status := q.getStatus(); status == StatusClose || status == StatusFail {
-		return false
+		return ErrQueueClosed
 	}
 
 	atomic.AddInt64(&q.enqlock, 1)
@@ -239,30 +224,30 @@ func (q *Queue) denqueue(x interface{}, delay time.Duration) bool {
 	}
 	itm := item{
 		payload: x,
-		dexpire: q.clk().Now().Add(delay).UnixNano(),
+		dexpire: q.clk().Now().Add(q.c().Delay).UnixNano(),
 	}
 	return q.renqueue(&itm)
 }
 
 // Put wrapped item to the queue.
-// This method also uses for enqueue retries (according MaxRetries param).
-func (q *Queue) renqueue(itm *item) bool {
+// This method also uses for enqueue retries (see Config.MaxRetries).
+func (q *Queue) renqueue(itm *item) error {
 	q.m().QueuePut(q.k())
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
 		case q.stream <- *itm:
-			return true
+			return nil
 		default:
 			// Leak the item to DLQ.
-			q.c().DLQ.Enqueue(itm.payload)
+			err := q.c().DLQ.Enqueue(itm.payload)
 			q.m().QueueLeak(q.k())
-			return false
+			return err
 		}
 	} else {
 		// Regular put (blocking mode).
 		q.stream <- *itm
-		return true
+		return nil
 	}
 }
 
@@ -275,20 +260,20 @@ func (q *Queue) Rate() float32 {
 //
 // After receiving of close signal at least workersMin number of workers will work so long as queue has items.
 // Enqueue of new items to queue will forbid.
-func (q *Queue) Close() {
-	q.close(false)
+func (q *Queue) Close() error {
+	return q.close(false)
 }
 
 // ForceClose closes the queue and immediately stops all active and sleeping workers.
 //
 // Remaining items in the queue will throw to the trash.
-func (q *Queue) ForceClose() {
-	q.close(true)
+func (q *Queue) ForceClose() error {
+	return q.close(true)
 }
 
-func (q *Queue) close(force bool) {
+func (q *Queue) close(force bool) error {
 	if q.getStatus() == StatusClose {
-		return
+		return ErrQueueClosed
 	}
 	if q.l() != nil {
 		msg := "queue #%s caught close signal"
@@ -325,6 +310,7 @@ func (q *Queue) close(force bool) {
 			q.m().QueueLost(q.k())
 		}
 	}
+	return nil
 }
 
 // Internal calibration helper.
