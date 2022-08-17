@@ -177,7 +177,7 @@ func (q *Queue) init() {
 	// Start [0...workersMin] workers.
 	for i = 0; i < params.WorkersMin; i++ {
 		q.workers[i].signal(sigInit)
-		go q.workers[i].dequeue(q)
+		go q.workers[i].await(q)
 	}
 	q.workersUp = int32(params.WorkersMin)
 
@@ -395,7 +395,7 @@ func (q *Queue) calibrate(force bool) {
 				switch q.workers[i].getStatus() {
 				case WorkerStatusIdle:
 					q.workers[i].signal(sigInit)
-					go q.workers[i].dequeue(q)
+					go q.workers[i].await(q)
 				case WorkerStatusSleep:
 					q.workers[i].signal(sigWakeup)
 				default:
@@ -445,7 +445,7 @@ func (q *Queue) calibrate(force bool) {
 			}
 			if ws == WorkerStatusIdle {
 				q.workers[i].signal(sigInit)
-				go q.workers[i].dequeue(q)
+				go q.workers[i].await(q)
 			} else {
 				q.workers[i].signal(sigWakeup)
 			}

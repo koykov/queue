@@ -42,7 +42,7 @@ type TransitWorker struct {
 * Add Config.Timeout to limit processing time.
   * Consider WorkerComposer.
   * Think about dumps.
-* Change Config.DLQ type to QueueInterface
+* ~~Change Config.DLQ type to QueueInterface~~
 * Implement TrashDLQ to put items to /dev/null
 * Implement DumpDLQ with following features:
   * Allow to specify max size in bytes

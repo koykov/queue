@@ -64,8 +64,8 @@ func (w *worker) signal(sig signal) {
 	}
 }
 
-// Stream processing.
-func (w *worker) dequeue(queue *Queue) {
+// Waits to income item to process or control signal.
+func (w *worker) await(queue *Queue) {
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
@@ -101,7 +101,7 @@ func (w *worker) dequeue(queue *Queue) {
 					itm.dexpire = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
 					queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
-					w.c().DLQ.Enqueue(itm.payload)
+					_ = w.c().DLQ.Enqueue(itm.payload)
 					w.m().QueueLeak(w.k())
 				}
 			}
