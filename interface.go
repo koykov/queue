@@ -9,3 +9,9 @@ type Interface interface {
 	// Close gracefully stops the queue.
 	Close() error
 }
+
+// Worker describes queue worker interface.
+type Worker interface {
+	// Do process the item.
+	Do(x interface{}) error
+}
