@@ -25,6 +25,8 @@ wc := NewWorkerComposer().Add(&worker0).
         Add(&workerN)
 // or
 wc := NewWorkerComposer(&worker0, &worker1, ...)
+// or
+wc := ComposeWorkers(&worker0, &worker1, ...)
 
 conf.Worker = &wc
 ```
@@ -37,6 +39,9 @@ type TransitWorker struct {
     }
 }
 ```
+* Add Config.Timeout to limit processing time.
+  * Consider WorkerComposer.
+  * Think about dumps.
 * Change Config.DLQ type to QueueInterface
 * Implement TrashDLQ to put items to /dev/null
 * Implement DumpDLQ with following features:
