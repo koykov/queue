@@ -7,6 +7,7 @@ var (
 	ErrNoSize     = errors.New("size must be greater than zero")
 	ErrNoDequeuer = errors.New("no dequeuer component provided")
 	ErrNoWorker   = errors.New("no workers available")
+	ErrNoQueue    = errors.New("no queue provided")
 
 	ErrSchedMinGtMax = errors.New("min workers greater than max")
 	ErrSchedZeroMax  = errors.New("max workers must be greater than 0")
