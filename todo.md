@@ -1,6 +1,6 @@
 # TODO
 
-* Implement Queue interface
+* ~~Implement Queue interface~~
 ```go
 type Interface interface {
 	Enqueue(x interface{}) error
@@ -10,14 +10,14 @@ type Interface interface {
 	ForceClose()
 }
 ```
-* Implement Worker interface
+* ~~Implement Worker interface~~
 ```go
 type Worker interface {
 	Do(x interface{}) error
 	DoContext(ctx context.Context, x interface{}) error // idea
 }
 ```
-* Implement WorkerComposer that implements Worker interface and run all registered workers sequentially
+* ~~Implement WorkerComposer that implements Worker interface and run all registered workers sequentially~~
 ```go
 wc := NewWorkerComposer().Add(&worker0).
 	Add(&worker1).
@@ -30,7 +30,7 @@ wc := ComposeWorkers(&worker0, &worker1, ...)
 
 conf.Worker = &wc
 ```
-* Implement TransitWorker to route item to other queue
+* ~~Implement TransitWorker to route item to other queue~~
 ```go
 type TransitWorker struct {
 	Queue QueueInterface

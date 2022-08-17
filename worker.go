@@ -31,8 +31,8 @@ type worker struct {
 	pause chan struct{}
 	// Last signal timestamp.
 	lastTS int64
-	// Dequeuer instance.
-	proc Dequeuer
+	// Worker instance.
+	proc Worker
 	// Config of the queue.
 	config *Config
 }
@@ -43,7 +43,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		pause:  make(chan struct{}, 1),
-		proc:   config.Dequeuer,
+		proc:   config.Worker,
 		config: config,
 	}
 	return w
@@ -92,7 +92,7 @@ func (w *worker) dequeue(queue *Queue) {
 			}
 
 			// Forward itm to dequeuer.
-			if err := w.proc.Dequeue(itm.payload); err != nil {
+			if err := w.proc.Do(itm.payload); err != nil {
 				// Processing failed.
 				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.

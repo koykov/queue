@@ -66,9 +66,9 @@ type Config struct {
 	// See schedule.go for usage examples.
 	Schedule *Schedule
 
-	// Dequeuer is a worker's dequeue helper.
+	// Worker represents queue worker.
 	// Mandatory param.
-	Dequeuer Dequeuer
+	Worker Worker
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
 	DLQ DLQ

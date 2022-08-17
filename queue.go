@@ -102,8 +102,8 @@ func (q *Queue) init() {
 		q.status = StatusFail
 		return
 	}
-	if c.Dequeuer == nil {
-		q.Err = ErrNoDequeuer
+	if c.Worker == nil {
+		q.Err = ErrNoWorker
 		q.status = StatusFail
 		return
 	}
@@ -128,7 +128,7 @@ func (q *Queue) init() {
 		c.WorkersMin = c.WorkersMax
 	}
 	if c.WorkersMax == 0 {
-		q.Err = ErrNoWorker
+		q.Err = ErrNoWorkers
 		q.status = StatusFail
 		return
 	}
