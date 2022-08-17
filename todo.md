@@ -62,3 +62,5 @@ type TransitWorker struct {
   * qtk (queue toolkit)
   * pipe/pipeq
   * ...
+* Comment issues.
+* Add detailed readme.
