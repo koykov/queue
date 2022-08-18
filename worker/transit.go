@@ -7,8 +7,8 @@ type Transit struct {
 	queue blqueue.Interface
 }
 
-// NewTransit makes transit worker with destination queue.
-func NewTransit(queue blqueue.Interface) *Transit {
+// TransitTo makes transit worker with destination queue.
+func TransitTo(queue blqueue.Interface) *Transit {
 	w := Transit{queue: queue}
 	return &w
 }
@@ -20,4 +20,4 @@ func (w Transit) Do(x interface{}) error {
 	return w.queue.Enqueue(x)
 }
 
-var _ = NewTransit
+var _ = TransitTo
