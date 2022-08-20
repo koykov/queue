@@ -4,10 +4,11 @@ import "time"
 
 const (
 	Byte     MemorySize = 1
-	Kilobyte            = Byte * 1000
-	Megabyte            = Kilobyte * 1000
-	Gigabyte            = Megabyte * 1000
-	Terabyte            = Gigabyte * 1000
+	Kilobyte            = Byte * 1024
+	Megabyte            = Kilobyte * 1024
+	Gigabyte            = Megabyte * 1024
+	Terabyte            = Gigabyte * 1024
+	_                   = Terabyte
 )
 
 type MemorySize uint64
@@ -29,5 +30,3 @@ func (q Dump) Rate() float32 {
 func (q Dump) Close() error {
 	return nil
 }
-
-var _ = Terabyte
