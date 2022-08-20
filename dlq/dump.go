@@ -2,6 +2,8 @@ package dlq
 
 import "time"
 
+type MemorySize uint64
+
 const (
 	Byte     MemorySize = 1
 	Kilobyte            = Byte * 1024
@@ -11,11 +13,23 @@ const (
 	_                   = Terabyte
 )
 
-type MemorySize uint64
+type Encoder interface {
+	Encode(dst []byte, x interface{}) ([]byte, error)
+}
+
+type Decoder interface {
+	Decode(p []byte) (interface{}, error)
+}
+
+type EncoderDecoder interface {
+	Encoder
+	Decoder
+}
 
 type Dump struct {
-	Size      MemorySize
-	TimeLimit time.Duration
+	Size           MemorySize
+	TimeLimit      time.Duration
+	EncoderDecoder EncoderDecoder
 }
 
 func (q *Dump) Enqueue(x interface{}) error {
