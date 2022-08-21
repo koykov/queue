@@ -21,15 +21,11 @@ type Decoder interface {
 	Decode(p []byte) (interface{}, error)
 }
 
-type EncoderDecoder interface {
-	Encoder
-	Decoder
-}
-
 type Dump struct {
-	Size           MemorySize
-	TimeLimit      time.Duration
-	EncoderDecoder EncoderDecoder
+	Size      MemorySize
+	TimeLimit time.Duration
+	Encoder   Encoder
+	Decoder   Decoder
 }
 
 func (q *Dump) Enqueue(x interface{}) error {
