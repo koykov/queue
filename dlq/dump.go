@@ -1,6 +1,10 @@
 package dlq
 
-import "time"
+import (
+	"math"
+	"sync"
+	"time"
+)
 
 type MemorySize uint64
 
@@ -26,17 +30,38 @@ type Dump struct {
 	TimeLimit time.Duration
 	Encoder   Encoder
 	Decoder   Decoder
+
+	mux sync.Mutex
+	buf []byte
 }
 
-func (q *Dump) Enqueue(x interface{}) error {
-	_ = x
-	return nil
+func (q *Dump) Enqueue(x interface{}) (err error) {
+	q.mux.Lock()
+	defer q.mux.Unlock()
+
+	// off := len(q.buf)
+	if q.Encoder != nil {
+		if q.buf, err = q.Encoder.Encode(q.buf, x); err != nil {
+			return
+		}
+	} else {
+		// todo check different types of x
+	}
+
+	return
 }
 
-func (q Dump) Rate() float32 {
-	return 0
+func (q *Dump) Rate() float32 {
+	q.mux.Lock()
+	defer q.mux.Unlock()
+	if q.Size == 0 {
+		return math.MaxFloat32
+	}
+	return float32(len(q.buf)) / float32(q.Size)
 }
 
-func (q Dump) Close() error {
+func (q *Dump) Close() error {
+	q.mux.Lock()
+	defer q.mux.Unlock()
 	return nil
 }
