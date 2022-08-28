@@ -114,7 +114,7 @@ func (q *Queue) init() {
 
 	if c.MetricsWriter == nil {
 		// Use dummy MW.
-		c.MetricsWriter = &DummyMetrics{}
+		c.MetricsWriter = DummyMetrics{}
 	}
 
 	// Check workers numbers params.
