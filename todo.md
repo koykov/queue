@@ -64,3 +64,4 @@ type TransitWorker struct {
   * ...
 * Comment issues.
 * Add detailed readme.
+  * config copy explanation
