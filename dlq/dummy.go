@@ -5,5 +5,7 @@ package dlq
 type Dummy struct{}
 
 func (Dummy) Enqueue(_ interface{}) error { return nil }
+func (Dummy) Size() int                   { return 0 }
+func (Dummy) Capacity() int               { return 0 }
 func (Dummy) Rate() float32               { return 0 }
 func (Dummy) Close() error                { return nil }

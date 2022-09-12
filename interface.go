@@ -4,7 +4,11 @@ package blqueue
 type Interface interface {
 	// Enqueue puts item to the queue.
 	Enqueue(x interface{}) error
-	// Rate returns a fullness rate of the queue.
+	// Size return actual size of the queue.
+	Size() int
+	// Capacity return max size of the queue.
+	Capacity() int
+	// Rate returns size to capacity ratio.
 	Rate() float32
 	// Close gracefully stops the queue.
 	Close() error

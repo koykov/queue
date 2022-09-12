@@ -251,7 +251,17 @@ func (q *Queue) renqueue(itm *item) error {
 	}
 }
 
-// Rate returns a fullness rate of the queue.
+// Size return actual size of the queue.
+func (q *Queue) Size() int {
+	return len(q.stream)
+}
+
+// Capacity return max size of the queue.
+func (q *Queue) Capacity() int {
+	return cap(q.stream)
+}
+
+// Rate returns size to capacity ratio.
 func (q *Queue) Rate() float32 {
 	return float32(len(q.stream)) / float32(cap(q.stream))
 }
