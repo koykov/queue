@@ -17,3 +17,13 @@ func (DummyMetrics) QueuePull(_ string)                                    {}
 func (DummyMetrics) QueueRetry(_ string)                                   {}
 func (DummyMetrics) QueueLeak(_ string)                                    {}
 func (DummyMetrics) QueueLost(_ string)                                    {}
+
+// DummyDLQ is a stub DLQ implementation. It does nothing and need for queues with leak tolerance.
+// It just leaks data to the trash.
+type DummyDLQ struct{}
+
+func (DummyDLQ) Enqueue(_ interface{}) error { return nil }
+func (DummyDLQ) Size() int                   { return 0 }
+func (DummyDLQ) Capacity() int               { return 0 }
+func (DummyDLQ) Rate() float32               { return 0 }
+func (DummyDLQ) Close() error                { return nil }
