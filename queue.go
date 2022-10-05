@@ -314,10 +314,15 @@ func (q *Queue) close(force bool) error {
 			}
 		}
 		q.mux.Unlock()
-		// Throw all remaining items to the trash.
+		// Throw all remaining items to DLQ or trash.
 		for len(q.stream) > 0 {
-			<-q.stream
-			q.m().QueueLost(q.k())
+			itm := <-q.stream
+			if q.CheckBit(flagLeaky) {
+				_ = q.c().DLQ.Enqueue(itm.payload)
+				q.m().QueueLeak(q.k())
+			} else {
+				q.m().QueueLost(q.k())
+			}
 		}
 	}
 	return nil
