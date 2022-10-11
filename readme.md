@@ -1,6 +1,6 @@
 # Balanced Leaky Queue
 
-`blqueue` balances queue among available workers (`WorkersMin` and `WorkersMax` params).
+`queue` balances queue among available workers (`WorkersMin` and `WorkersMax` params).
 
 It has the following features:
 * Put to sleep idle workers depending of queue's fullness rate.

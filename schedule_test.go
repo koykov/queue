@@ -1,4 +1,4 @@
-package blqueue
+package queue
 
 import "testing"
 

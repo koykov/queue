@@ -1,4 +1,4 @@
-package blqueue
+package queue
 
 // Interface describes queue interface.
 type Interface interface {

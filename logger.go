@@ -1,4 +1,4 @@
-package blqueue
+package queue
 
 // Logger is an interface of logger interface.
 // Prints verbose messages.

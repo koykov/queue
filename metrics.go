@@ -1,9 +1,9 @@
-package blqueue
+package queue
 
 import "time"
 
 // MetricsWriter is an interface of metrics handler.
-// See example of implementations https://github.com/koykov/metrics_writers/tree/master/blqueue.
+// See example of implementations https://github.com/koykov/metrics_writers/tree/master/queue.
 type MetricsWriter interface {
 	// WorkerSetup set initial workers statuses.
 	// Calls twice: on queue init and schedule's time range changes.

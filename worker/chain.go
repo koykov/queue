@@ -1,18 +1,18 @@
 package worker
 
-import "github.com/koykov/blqueue"
+import "github.com/koykov/queue"
 
 // Chain describes workers list to process item consecutively.
-type Chain []blqueue.Worker
+type Chain []queue.Worker
 
 // Bind holds workers to one chain.
-func Bind(workers ...blqueue.Worker) *Chain {
+func Bind(workers ...queue.Worker) *Chain {
 	wc := Chain{}
 	return wc.Bind(workers...)
 }
 
 // Bind appends workers to the chain.
-func (w *Chain) Bind(workers ...blqueue.Worker) *Chain {
+func (w *Chain) Bind(workers ...queue.Worker) *Chain {
 	*w = append(*w, workers...)
 	return w
 }

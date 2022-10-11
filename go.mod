@@ -1,4 +1,4 @@
-module github.com/koykov/blqueue
+module github.com/koykov/queue
 
 go 1.16
 
