@@ -7,25 +7,25 @@ import "time"
 type MetricsWriter interface {
 	// WorkerSetup set initial workers statuses.
 	// Calls twice: on queue init and schedule's time range changes.
-	WorkerSetup(queue string, active, sleep, stop uint)
+	WorkerSetup(active, sleep, stop uint)
 	// WorkerInit registers worker's start moment.
-	WorkerInit(queue string, idx uint32)
+	WorkerInit(idx uint32)
 	// WorkerSleep registers when worker puts to sleep.
-	WorkerSleep(queue string, idx uint32)
+	WorkerSleep(idx uint32)
 	// WorkerWakeup registers when slept worker resumes.
-	WorkerWakeup(queue string, idx uint32)
+	WorkerWakeup(idx uint32)
 	// WorkerWait registers how many worker waits due to delayed execution.
-	WorkerWait(queue string, idx uint32, dur time.Duration)
+	WorkerWait(idx uint32, dur time.Duration)
 	// WorkerStop registers when sleeping worker stops.
-	WorkerStop(queue string, idx uint32, force bool, status WorkerStatus)
+	WorkerStop(idx uint32, force bool, status WorkerStatus)
 	// QueuePut registers income of new item to the queue.
-	QueuePut(queue string)
+	QueuePut()
 	// QueuePull registers outgoing of item from the queue.
-	QueuePull(queue string)
+	QueuePull()
 	// QueueRetry registers total amount of retries.
-	QueueRetry(queue string)
+	QueueRetry()
 	// QueueLeak registers item's leak from the full queue.
-	QueueLeak(queue string)
+	QueueLeak()
 	// QueueLost registers lost items missed queue and DLQ.
-	QueueLost(queue string)
+	QueueLost()
 }

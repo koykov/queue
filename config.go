@@ -20,9 +20,6 @@ const (
 
 // Config describes queue properties and behavior.
 type Config struct {
-	// Unique queue key. Indicates queue in logs and metrics.
-	// Mandatory param.
-	Key string
 	// Queue capacity.
 	// Mandatory param.
 	Size uint64

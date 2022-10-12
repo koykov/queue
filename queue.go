@@ -92,11 +92,6 @@ func (q *Queue) init() {
 	c := q.config
 
 	// Check mandatory params.
-	if len(c.Key) == 0 {
-		q.Err = ErrNoKey
-		q.status = StatusFail
-		return
-	}
 	if c.Size == 0 {
 		q.Err = ErrNoSize
 		q.status = StatusFail
@@ -169,10 +164,10 @@ func (q *Queue) init() {
 	q.workers = make([]*worker, q.wmax)
 	var i uint32
 	for i = 0; i < q.wmax; i++ {
-		q.m().WorkerSleep(q.k(), i)
+		q.m().WorkerSleep(i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	q.m().WorkerSetup(q.k(), 0, 0, uint(params.WorkersMax))
+	q.m().WorkerSetup(0, 0, uint(params.WorkersMax))
 
 	// Start [0...workersMin] workers.
 	for i = 0; i < params.WorkersMin; i++ {
@@ -232,7 +227,7 @@ func (q *Queue) Enqueue(x interface{}) error {
 // Put wrapped item to the queue.
 // This method also uses for enqueue retries (see Config.MaxRetries).
 func (q *Queue) renqueue(itm *item) error {
-	q.m().QueuePut(q.k())
+	q.m().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
@@ -241,7 +236,7 @@ func (q *Queue) renqueue(itm *item) error {
 		default:
 			// Leak the item to DLQ.
 			err := q.c().DLQ.Enqueue(itm.payload)
-			q.m().QueueLeak(q.k())
+			q.m().QueueLeak()
 			return err
 		}
 	} else {
@@ -286,11 +281,11 @@ func (q *Queue) close(force bool) error {
 		return ErrQueueClosed
 	}
 	if q.l() != nil {
-		msg := "queue #%s caught close signal"
+		msg := "caught close signal"
 		if force {
-			msg = "queue #%s caught force close signal"
+			msg = "caught force close signal"
 		}
-		q.l().Printf(msg, q.k())
+		q.l().Printf(msg)
 	}
 	// Set the status.
 	q.setStatus(StatusClose)
@@ -319,9 +314,9 @@ func (q *Queue) close(force bool) error {
 			itm := <-q.stream
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.m().QueueLeak(q.k())
+				q.m().QueueLeak()
 			} else {
-				q.m().QueueLost(q.k())
+				q.m().QueueLost()
 			}
 		}
 	}
@@ -351,11 +346,11 @@ func (q *Queue) calibrate(force bool) {
 
 	rate := q.Rate()
 	if q.l() != nil {
-		msg := "queue #%s calibrate: rate %f, workers %d"
+		msg := "calibrate: rate %f, workers %d"
 		if force {
-			msg = "queue #%s force calibrate: rate %f, workers %d"
+			msg = "force calibrate: rate %f, workers %d"
 		}
-		q.l().Printf(msg, q.k(), rate, atomic.LoadInt32(&q.workersUp))
+		q.l().Printf(msg, rate, atomic.LoadInt32(&q.workersUp))
 	}
 
 	// Check and stop pre-sleeping workers.
@@ -373,8 +368,8 @@ func (q *Queue) calibrate(force bool) {
 	if params, schedID = q.rtParams(); schedID != q.schedID {
 		q.schedID = schedID
 		if q.l() != nil {
-			q.l().Printf("queue #%s: switch to schedID %d (workers %d/%d, wakeup factor %f, sleep factor %f)",
-				q.k(), schedID, params.WorkersMin, params.WorkersMax, params.WakeupFactor, params.SleepFactor)
+			q.l().Printf("switch to schedID %d (workers %d/%d, wakeup factor %f, sleep factor %f)",
+				schedID, params.WorkersMin, params.WorkersMax, params.WakeupFactor, params.SleepFactor)
 		}
 		// Stop all workers in range [workersMax...wmax].
 		// wmax is a number of maximum workers queue may have.
@@ -422,7 +417,7 @@ func (q *Queue) calibrate(force bool) {
 			}
 		}
 		// Reinitialize workers counters in metrics.
-		q.m().WorkerSetup(q.k(), active, sleep, idle)
+		q.m().WorkerSetup(active, sleep, idle)
 	}
 
 	// Calibration issues.
@@ -597,10 +592,6 @@ func (q *Queue) c() *Config {
 	return q.config
 }
 
-func (q *Queue) k() string {
-	return q.config.Key
-}
-
 func (q *Queue) clk() Clock {
 	return q.config.Clock
 }
@@ -612,3 +603,5 @@ func (q *Queue) m() MetricsWriter {
 func (q *Queue) l() Logger {
 	return q.config.Logger
 }
+
+var _ = New

@@ -18,7 +18,6 @@ func TestConfig(t *testing.T) {
 		_ = sched.AddRange("06:12:43-08:43:12", ScheduleParams{1, 4, .7, .25})
 		_ = sched.AddRange("16:00:30-18:05:32", ScheduleParams{2, 8, .15, .05})
 		conf := &Config{
-			Key:          "foobar",
 			Size:         1e5,
 			Heartbeat:    time.Minute,
 			WorkersMin:   1,

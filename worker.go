@@ -79,7 +79,7 @@ func (w *worker) await(queue *Queue) {
 				w.stop(true)
 				return
 			}
-			w.m().QueuePull(w.k())
+			w.m().QueuePull()
 
 			// Check delayed execution.
 			if itm.dexpire > 0 {
@@ -87,7 +87,7 @@ func (w *worker) await(queue *Queue) {
 				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					time.Sleep(delta)
-					w.m().WorkerWait(w.k(), w.idx, delta)
+					w.m().WorkerWait(w.idx, delta)
 				}
 			}
 
@@ -96,13 +96,13 @@ func (w *worker) await(queue *Queue) {
 				// Processing failed.
 				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.
-					w.m().QueueRetry(w.k())
+					w.m().QueueRetry()
 					itm.retries++
 					itm.dexpire = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
-					queue.renqueue(&itm)
+					_ = queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
-					w.m().QueueLeak(w.k())
+					w.m().QueueLeak()
 				}
 			}
 		case WorkerStatusIdle:
@@ -115,41 +115,41 @@ func (w *worker) await(queue *Queue) {
 // Start idle worker.
 func (w *worker) init() {
 	if w.l() != nil {
-		w.l().Printf("queue #%s worker #%d init\n", w.k(), w.idx)
+		w.l().Printf("worker #%d init\n", w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerInit(w.k(), w.idx)
+	w.m().WorkerInit(w.idx)
 }
 
 // Put worker to the sleep.
 func (w *worker) sleep() {
 	if w.l() != nil {
-		w.l().Printf("queue #%s worker #%d sleep\n", w.k(), w.idx)
+		w.l().Printf("worker #%d sleep\n", w.idx)
 	}
 	w.setStatus(WorkerStatusSleep)
-	w.m().WorkerSleep(w.k(), w.idx)
+	w.m().WorkerSleep(w.idx)
 }
 
 // Wakeup sleeping worker.
 func (w *worker) wakeup() {
 	if w.l() != nil {
-		w.l().Printf("queue #%s worker #%d wakeup\n", w.k(), w.idx)
+		w.l().Printf("worker #%d wakeup\n", w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerWakeup(w.k(), w.idx)
+	w.m().WorkerWakeup(w.idx)
 	w.pause <- struct{}{}
 }
 
 // Stop (or force stop) worker.
 func (w *worker) stop(force bool) {
 	if w.l() != nil {
-		msg := "queue #%s worker #%d stop\n"
+		msg := "worker #%d stop\n"
 		if force {
-			msg = "queue #%s worker #%d force stop\n"
+			msg = "worker #%d force stop\n"
 		}
-		w.l().Printf(msg, w.k(), w.idx)
+		w.l().Printf(msg, w.idx)
 	}
-	w.m().WorkerStop(w.k(), w.idx, force, w.getStatus())
+	w.m().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
 	// Notify pause channel about stop.
 	w.pause <- struct{}{}
@@ -173,10 +173,6 @@ func (w *worker) sleptEnough() bool {
 
 func (w *worker) c() *Config {
 	return w.config
-}
-
-func (w *worker) k() string {
-	return w.config.Key
 }
 
 func (w *worker) m() MetricsWriter {
