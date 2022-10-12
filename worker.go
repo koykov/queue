@@ -79,7 +79,7 @@ func (w *worker) await(queue *Queue) {
 				w.stop(true)
 				return
 			}
-			w.m().QueuePull()
+			w.mw().QueuePull()
 
 			// Check delayed execution.
 			if itm.dexpire > 0 {
@@ -87,7 +87,7 @@ func (w *worker) await(queue *Queue) {
 				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					time.Sleep(delta)
-					w.m().WorkerWait(w.idx, delta)
+					w.mw().WorkerWait(w.idx, delta)
 				}
 			}
 
@@ -96,13 +96,13 @@ func (w *worker) await(queue *Queue) {
 				// Processing failed.
 				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.
-					w.m().QueueRetry()
+					w.mw().QueueRetry()
 					itm.retries++
 					itm.dexpire = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
 					_ = queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
-					w.m().QueueLeak()
+					w.mw().QueueLeak()
 				}
 			}
 		case WorkerStatusIdle:
@@ -118,7 +118,7 @@ func (w *worker) init() {
 		w.l().Printf("worker #%d init\n", w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerInit(w.idx)
+	w.mw().WorkerInit(w.idx)
 }
 
 // Put worker to the sleep.
@@ -127,7 +127,7 @@ func (w *worker) sleep() {
 		w.l().Printf("worker #%d sleep\n", w.idx)
 	}
 	w.setStatus(WorkerStatusSleep)
-	w.m().WorkerSleep(w.idx)
+	w.mw().WorkerSleep(w.idx)
 }
 
 // Wakeup sleeping worker.
@@ -136,7 +136,7 @@ func (w *worker) wakeup() {
 		w.l().Printf("worker #%d wakeup\n", w.idx)
 	}
 	w.setStatus(WorkerStatusActive)
-	w.m().WorkerWakeup(w.idx)
+	w.mw().WorkerWakeup(w.idx)
 	w.pause <- struct{}{}
 }
 
@@ -149,7 +149,7 @@ func (w *worker) stop(force bool) {
 		}
 		w.l().Printf(msg, w.idx)
 	}
-	w.m().WorkerStop(w.idx, force, w.getStatus())
+	w.mw().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
 	// Notify pause channel about stop.
 	w.pause <- struct{}{}
@@ -175,7 +175,7 @@ func (w *worker) c() *Config {
 	return w.config
 }
 
-func (w *worker) m() MetricsWriter {
+func (w *worker) mw() MetricsWriter {
 	return w.config.MetricsWriter
 }
 

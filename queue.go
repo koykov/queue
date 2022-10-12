@@ -164,10 +164,10 @@ func (q *Queue) init() {
 	q.workers = make([]*worker, q.wmax)
 	var i uint32
 	for i = 0; i < q.wmax; i++ {
-		q.m().WorkerSleep(i)
+		q.mw().WorkerSleep(i)
 		q.workers[i] = makeWorker(i, c)
 	}
-	q.m().WorkerSetup(0, 0, uint(params.WorkersMax))
+	q.mw().WorkerSetup(0, 0, uint(params.WorkersMax))
 
 	// Start [0...workersMin] workers.
 	for i = 0; i < params.WorkersMin; i++ {
@@ -227,7 +227,7 @@ func (q *Queue) Enqueue(x interface{}) error {
 // Put wrapped item to the queue.
 // This method also uses for enqueue retries (see Config.MaxRetries).
 func (q *Queue) renqueue(itm *item) error {
-	q.m().QueuePut()
+	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
@@ -236,7 +236,7 @@ func (q *Queue) renqueue(itm *item) error {
 		default:
 			// Leak the item to DLQ.
 			err := q.c().DLQ.Enqueue(itm.payload)
-			q.m().QueueLeak()
+			q.mw().QueueLeak()
 			return err
 		}
 	} else {
@@ -314,9 +314,9 @@ func (q *Queue) close(force bool) error {
 			itm := <-q.stream
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.m().QueueLeak()
+				q.mw().QueueLeak()
 			} else {
-				q.m().QueueLost()
+				q.mw().QueueLost()
 			}
 		}
 	}
@@ -417,7 +417,7 @@ func (q *Queue) calibrate(force bool) {
 			}
 		}
 		// Reinitialize workers counters in metrics.
-		q.m().WorkerSetup(active, sleep, idle)
+		q.mw().WorkerSetup(active, sleep, idle)
 	}
 
 	// Calibration issues.
@@ -596,7 +596,7 @@ func (q *Queue) clk() Clock {
 	return q.config.Clock
 }
 
-func (q *Queue) m() MetricsWriter {
+func (q *Queue) mw() MetricsWriter {
 	return q.config.MetricsWriter
 }
 
