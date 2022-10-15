@@ -16,6 +16,8 @@ const (
 	defaultSleepInterval = time.Second * 5
 	// Default simultaneous enqueue operation limit to start force calibration.
 	defaultForceCalibrationLimit = 1000
+	// Default top limit of factors.
+	defaultFactorLimit = .999999
 )
 
 // Config describes queue properties and behavior.
@@ -49,10 +51,12 @@ type Config struct {
 	WorkersMax uint32
 	// Worker wake up factor in dependency of queue fullness rate.
 	// When queue fullness rate will exceed that factor, then first available slept worker will wake.
+	// WakeupFactor must be in range [0..0.999999].
 	// If this param omit defaultWakeupFactor (0.75) will use instead.
 	WakeupFactor float32
 	// Worker sleep factor in dependency of queue fullness rate.
 	// When queue fullness rate will less than  that factor, one of active workers will put to sleep.
+	// SleepFactor must be in range [0..0.999999].
 	// If this param omit defaultSleepFactor (0.5) will use instead.
 	SleepFactor float32
 	// How long slept worker will wait until stop.

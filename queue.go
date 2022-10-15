@@ -135,12 +135,21 @@ func (q *Queue) init() {
 	if c.WakeupFactor <= 0 {
 		c.WakeupFactor = defaultWakeupFactor
 	}
+	if c.WakeupFactor > defaultFactorLimit {
+		c.WakeupFactor = defaultFactorLimit
+	}
+
 	if c.SleepFactor <= 0 {
 		c.SleepFactor = defaultSleepFactor
 	}
+	if c.SleepFactor > defaultFactorLimit {
+		c.SleepFactor = defaultFactorLimit
+	}
+
 	if c.WakeupFactor < c.SleepFactor {
 		c.WakeupFactor = c.SleepFactor
 	}
+
 	if c.SleepInterval == 0 {
 		c.SleepInterval = defaultSleepInterval
 	}
