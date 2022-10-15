@@ -141,8 +141,8 @@ func (q *Queue) init() {
 	if c.WakeupFactor < c.SleepFactor {
 		c.WakeupFactor = c.SleepFactor
 	}
-	if c.SleepTimeout == 0 {
-		c.SleepTimeout = defaultSleepTimeout
+	if c.SleepInterval == 0 {
+		c.SleepInterval = defaultSleepInterval
 	}
 	if c.Heartbeat == 0 {
 		c.Heartbeat = defaultHeartbeat

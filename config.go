@@ -13,7 +13,7 @@ const (
 	defaultHeartbeat = time.Second
 	// Worker default sleep interval.
 	// After that interval slept worker will stop.
-	defaultSleepTimeout = time.Second * 5
+	defaultSleepInterval = time.Second * 5
 	// Default simultaneous enqueue operation limit to start force calibration.
 	defaultForceCalibrationLimit = 1000
 )
@@ -56,8 +56,8 @@ type Config struct {
 	// If this param omit defaultSleepFactor (0.5) will use instead.
 	SleepFactor float32
 	// How long slept worker will wait until stop.
-	// If this param omit defaultSleepTimeout (5 seconds) will use instead.
-	SleepTimeout time.Duration
+	// If this param omit defaultSleepInterval (5 seconds) will use instead.
+	SleepInterval time.Duration
 
 	// Schedule contains base params (like workers min/max and factors) for specific time ranges.
 	// See schedule.go for usage examples.

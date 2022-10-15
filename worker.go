@@ -69,7 +69,7 @@ func (w *worker) await(queue *Queue) {
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
-			// Wait config.SleepTimeout.
+			// Wait config.SleepInterval.
 			<-w.pause
 		case WorkerStatusActive:
 			// Read itm from the stream.
@@ -168,7 +168,7 @@ func (w *worker) getStatus() WorkerStatus {
 // Check if worker slept enough time.
 func (w *worker) sleptEnough() bool {
 	dur := time.Duration(time.Now().UnixNano() - atomic.LoadInt64(&w.lastTS))
-	return dur >= w.c().SleepTimeout
+	return dur >= w.c().SleepInterval
 }
 
 func (w *worker) c() *Config {
