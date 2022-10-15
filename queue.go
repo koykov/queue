@@ -153,8 +153,8 @@ func (q *Queue) init() {
 	if c.SleepInterval == 0 {
 		c.SleepInterval = defaultSleepInterval
 	}
-	if c.Heartbeat == 0 {
-		c.Heartbeat = defaultHeartbeat
+	if c.HeartbeatInterval == 0 {
+		c.HeartbeatInterval = defaultHeartbeatInterval
 	}
 
 	// Create the stream.
@@ -187,7 +187,7 @@ func (q *Queue) init() {
 
 	if q.CheckBit(flagBalanced) {
 		// Init background heartbeat ticker.
-		tickerHB := time.NewTicker(c.Heartbeat)
+		tickerHB := time.NewTicker(c.HeartbeatInterval)
 		go func() {
 			for {
 				select {
@@ -226,9 +226,9 @@ func (q *Queue) Enqueue(x interface{}) error {
 			q.calibrate(true)
 		}
 	}
-	itm := item{
-		payload: x,
-		dexpire: q.clk().Now().Add(q.c().Delay).UnixNano(),
+	itm := item{payload: x}
+	if di := q.c().DelayInterval; di > 0 {
+		itm.dexpire = q.clk().Now().Add(di).UnixNano()
 	}
 	return q.renqueue(&itm)
 }
@@ -557,7 +557,7 @@ func (q *Queue) String() string {
 
 	out.Capacity = q.config.Capacity
 	out.Workers = q.config.Workers
-	out.Heartbeat = q.config.Heartbeat
+	out.Heartbeat = q.config.HeartbeatInterval
 	out.WorkersMin = q.config.WorkersMin
 	out.WorkersMax = q.config.WorkersMax
 	out.WakeupFactor = q.config.WakeupFactor

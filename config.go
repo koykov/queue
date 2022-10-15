@@ -10,7 +10,7 @@ const (
 	// Queue default fullness rate to sleep redundant active workers.
 	defaultSleepFactor = .5
 	// Queue default heartbeat rate.
-	defaultHeartbeat = time.Second
+	defaultHeartbeatInterval = time.Second
 	// Worker default sleep interval.
 	// After that interval slept worker will stop.
 	defaultSleepInterval = time.Second * 5
@@ -37,11 +37,11 @@ type Config struct {
 	// Setting this param disables balancing feature. If you want to have balancing use params WorkersMin and WorkersMax
 	// instead.
 	Workers uint32
-	// Heartbeat rate interval. Need to perform service operation like queue calibration, workers handling, etc.
+	// HeartbeatInterval rate interval. Need to perform service operation like queue calibration, workers handling, etc.
 	// Setting this param too big (greater than 1 second) is counterproductive - the queue will rarely calibrate and
 	// result may be insufficient good.
-	// If this param omit defaultHeartbeat (1 second) will use instead.
-	Heartbeat time.Duration
+	// If this param omit defaultHeartbeatInterval (1 second) will use instead.
+	HeartbeatInterval time.Duration
 
 	// Minimum workers number.
 	// Setting this param less than WorkersMax enables balancing feature.
@@ -77,10 +77,10 @@ type Config struct {
 	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
 	FailToDLQ bool
 
-	// Delay between item enqueue and processing.
+	// DelayInterval between item enqueue and processing.
 	// Settings this param enables delayed execution (DE) feature.
-	// DE guarantees that item will processed by worker after at least Delay time.
-	Delay time.Duration
+	// DE guarantees that item will processed by worker after at least DelayInterval time.
+	DelayInterval time.Duration
 
 	// Clock represents clock keeper.
 	// If this param omit nativeClock will use instead (see clock.go).
