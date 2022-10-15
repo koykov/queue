@@ -3,7 +3,7 @@ package queue
 import "errors"
 
 var (
-	ErrNoSize      = errors.New("size must be greater than zero")
+	ErrNoCapacity  = errors.New("capacity must be greater than zero")
 	ErrNoWorker    = errors.New("no worker provided")
 	ErrNoWorkers   = errors.New("no workers available")
 	ErrNoQueue     = errors.New("no queue provided")

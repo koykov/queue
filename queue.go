@@ -92,8 +92,8 @@ func (q *Queue) init() {
 	c := q.config
 
 	// Check mandatory params.
-	if c.Size == 0 {
-		q.Err = ErrNoSize
+	if c.Capacity == 0 {
+		q.Err = ErrNoCapacity
 		q.status = StatusFail
 		return
 	}
@@ -149,7 +149,7 @@ func (q *Queue) init() {
 	}
 
 	// Create the stream.
-	q.stream = make(stream, c.Size)
+	q.stream = make(stream, c.Capacity)
 
 	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
@@ -532,7 +532,7 @@ func (q *Queue) getStatus() Status {
 
 func (q *Queue) String() string {
 	var out = struct {
-		Size          uint64        `json:"size"`
+		Capacity      uint64        `json:"capacity"`
 		Workers       uint32        `json:"workers"`
 		Heartbeat     time.Duration `json:"heartbeat"`
 		WorkersMin    uint32        `json:"workers_min"`
@@ -546,7 +546,7 @@ func (q *Queue) String() string {
 		WorkersSleep  int           `json:"workers_sleep"`
 	}{}
 
-	out.Size = q.config.Size
+	out.Capacity = q.config.Capacity
 	out.Workers = q.config.Workers
 	out.Heartbeat = q.config.Heartbeat
 	out.WorkersMin = q.config.WorkersMin

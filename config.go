@@ -22,7 +22,7 @@ const (
 type Config struct {
 	// Queue capacity.
 	// Mandatory param.
-	Size uint64
+	Capacity uint64
 	// MaxRetries determines the maximum number of item processing retries.
 	// If MaxRetries is exceeded, the item will send to DLQ (if possible).
 	// The initial attempt is not counted as a retry.
