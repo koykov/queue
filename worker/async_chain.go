@@ -32,6 +32,7 @@ func (w AsyncChain) Do(x interface{}) (err error) {
 	for i := 0; i < len(w); i++ {
 		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			if err1 := w[i].Do(x); err1 != nil {
 				if atomic.AddUint32(&ef, 1) == 1 {
 					err = err1
