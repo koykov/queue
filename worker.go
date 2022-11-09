@@ -84,14 +84,29 @@ func (w *worker) await(queue *Queue) {
 			}
 			w.mw().QueuePull()
 
+			var intr bool
 			// Check delayed execution.
 			if itm.dexpire > 0 {
 				now := queue.clk().Now().UnixNano()
 				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
-					time.Sleep(delta)
+					select {
+					case <-time.After(delta):
+						break
+					case <-w.ctl:
+						// Waiting interrupted due to force close signal.
+						intr = true
+						// Calculate real wait time.
+						delta = time.Duration(queue.clk().Now().UnixNano() - now)
+						break
+					}
 					w.mw().WorkerWait(w.idx, delta)
 				}
+			}
+			if intr {
+				// Return item back to the queue due to interrupt signal.
+				_ = queue.renqueue(&itm)
+				return
 			}
 
 			// Forward itm to dequeuer.
