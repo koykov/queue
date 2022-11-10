@@ -155,14 +155,7 @@ func (w *worker) wakeup() {
 	}
 	w.setStatus(WorkerStatusActive)
 	w.mw().WorkerWakeup(w.idx)
-
-	// Check ctl channel for previously undelivered signal.
-	if len(w.ctl) > 0 {
-		// Clear ctl channel to prevent locking.
-		_, _ = <-w.ctl
-	}
-
-	w.ctl <- struct{}{}
+	w.notifyCtl()
 }
 
 // Stop (or force stop) worker.
@@ -176,6 +169,17 @@ func (w *worker) stop(force bool) {
 	}
 	w.mw().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
+	w.notifyCtl()
+}
+
+// Check if ctl channel is empty and send signal (wakeup or force close).
+func (w *worker) notifyCtl() {
+	// Check ctl channel for previously undelivered signal.
+	if len(w.ctl) > 0 {
+		// Clear ctl channel to prevent locking.
+		_, _ = <-w.ctl
+	}
+
 	// Send stop signal to ctl channel.
 	w.ctl <- struct{}{}
 }
