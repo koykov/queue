@@ -27,8 +27,11 @@ type worker struct {
 	idx uint32
 	// Status of the worker.
 	status WorkerStatus
-	// Pause channel between put to sleep and stop.
-	pause chan struct{}
+	// Channel to control sleep and stop states.
+	// This channel delivers two signals:
+	// * wakeup for slept workers
+	// * force close for active workers
+	ctl chan struct{}
 	// Last signal timestamp.
 	lastTS int64
 	// Worker instance.
@@ -42,7 +45,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 	w := &worker{
 		idx:    idx,
 		status: WorkerStatusIdle,
-		pause:  make(chan struct{}, 1),
+		ctl:    make(chan struct{}, 1),
 		proc:   config.Worker,
 		config: config,
 	}
@@ -70,7 +73,7 @@ func (w *worker) await(queue *Queue) {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
 			// Wait config.SleepInterval.
-			<-w.pause
+			<-w.ctl
 		case WorkerStatusActive:
 			// Read itm from the stream.
 			itm, ok := <-queue.stream
@@ -81,14 +84,29 @@ func (w *worker) await(queue *Queue) {
 			}
 			w.mw().QueuePull()
 
+			var intr bool
 			// Check delayed execution.
 			if itm.dexpire > 0 {
 				now := queue.clk().Now().UnixNano()
 				if delta := time.Duration(itm.dexpire - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
-					time.Sleep(delta)
+					select {
+					case <-time.After(delta):
+						break
+					case <-w.ctl:
+						// Waiting interrupted due to force close signal.
+						intr = true
+						// Calculate real wait time.
+						delta = time.Duration(queue.clk().Now().UnixNano() - now)
+						break
+					}
 					w.mw().WorkerWait(w.idx, delta)
 				}
+			}
+			if intr {
+				// Return item back to the queue due to interrupt signal.
+				_ = queue.renqueue(&itm)
+				return
 			}
 
 			// Forward itm to dequeuer.
@@ -137,7 +155,7 @@ func (w *worker) wakeup() {
 	}
 	w.setStatus(WorkerStatusActive)
 	w.mw().WorkerWakeup(w.idx)
-	w.pause <- struct{}{}
+	w.notifyCtl()
 }
 
 // Stop (or force stop) worker.
@@ -151,8 +169,19 @@ func (w *worker) stop(force bool) {
 	}
 	w.mw().WorkerStop(w.idx, force, w.getStatus())
 	w.setStatus(WorkerStatusIdle)
-	// Notify pause channel about stop.
-	w.pause <- struct{}{}
+	w.notifyCtl()
+}
+
+// Check if ctl channel is empty and send signal (wakeup or force close).
+func (w *worker) notifyCtl() {
+	// Check ctl channel for previously undelivered signal.
+	if len(w.ctl) > 0 {
+		// Clear ctl channel to prevent locking.
+		_, _ = <-w.ctl
+	}
+
+	// Send stop signal to ctl channel.
+	w.ctl <- struct{}{}
 }
 
 // Set worker status.
@@ -167,7 +196,7 @@ func (w *worker) getStatus() WorkerStatus {
 
 // Check if worker slept enough time.
 func (w *worker) sleptEnough() bool {
-	dur := time.Duration(time.Now().UnixNano() - atomic.LoadInt64(&w.lastTS))
+	dur := time.Duration(w.c().Clock.Now().UnixNano() - atomic.LoadInt64(&w.lastTS))
 	return dur >= w.c().SleepInterval
 }
 

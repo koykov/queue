@@ -301,9 +301,6 @@ func (q *Queue) close(force bool) error {
 	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
-	// Close the stream.
-	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	close(q.stream)
 
 	if force {
 		// Immediately stop all active/sleeping workers.
@@ -329,6 +326,10 @@ func (q *Queue) close(force bool) error {
 			}
 		}
 	}
+	// Close the stream.
+	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
+	close(q.stream)
+
 	return nil
 }
 

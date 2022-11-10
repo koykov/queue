@@ -1,2 +1,2 @@
-github.com/koykov/bitset v0.0.0-20220630192021-a713ee0d389d h1:b82iiOxU5g1mcgKfmJPg47WGLumM91t9wPNWN1a3DbM=
-github.com/koykov/bitset v0.0.0-20220630192021-a713ee0d389d/go.mod h1:Mg0YlEO6vG0Vd2N5qZhyH1ss2ZuuMZR8iYNKshQcm6I=
+github.com/koykov/bitset v1.0.0 h1:2mEbAhKelhpdWqnpa+mR3HRhdMsto5od7ACOi6MIAmk=
+github.com/koykov/bitset v1.0.0/go.mod h1:DVR3bH49c1oOcNtD38h+aQq7lp1ZY91cXmjOldlTk8A=
