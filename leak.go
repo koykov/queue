@@ -12,14 +12,3 @@ const (
 
 	defaultFrontLeakAttempts = 5
 )
-
-func (ld LeakDirection) String() string {
-	switch ld {
-	case LeakDirectionRear:
-		return "rear"
-	case LeakDirectionFront:
-		return "front"
-	default:
-		return "unknown"
-	}
-}

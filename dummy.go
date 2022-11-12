@@ -15,7 +15,7 @@ func (DummyMetrics) WorkerStop(_ uint32, _ bool, _ WorkerStatus) {}
 func (DummyMetrics) QueuePut()                                   {}
 func (DummyMetrics) QueuePull()                                  {}
 func (DummyMetrics) QueueRetry()                                 {}
-func (DummyMetrics) QueueLeak(_ string)                          {}
+func (DummyMetrics) QueueLeak(_ LeakDirection)                   {}
 func (DummyMetrics) QueueLost()                                  {}
 
 // DummyDLQ is a stub DLQ implementation. It does nothing and need for queues with leak tolerance.
