@@ -251,7 +251,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						return
 					}
-					q.mw().QueueLeak(q.c().LeakDirection.String())
+					q.mw().QueueLeak(LeakDirectionFront.String())
 					select {
 					case q.stream <- *itm:
 						return
@@ -259,11 +259,11 @@ func (q *Queue) renqueue(itm *item) (err error) {
 						continue
 					}
 				}
-			} else {
-				// Rear direction, just leak item.
-				err = q.c().DLQ.Enqueue(itm.payload)
-				q.mw().QueueLeak(q.c().LeakDirection.String())
+				// Front leak failed, fallback to rear direction.
 			}
+			// Rear direction, just leak item.
+			err = q.c().DLQ.Enqueue(itm.payload)
+			q.mw().QueueLeak(LeakDirectionRear.String())
 		}
 	} else {
 		// Regular put (blocking mode).
