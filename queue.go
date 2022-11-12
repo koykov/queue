@@ -235,24 +235,41 @@ func (q *Queue) Enqueue(x interface{}) error {
 
 // Put wrapped item to the queue.
 // This method also uses for enqueue retries (see Config.MaxRetries).
-func (q *Queue) renqueue(itm *item) error {
+func (q *Queue) renqueue(itm *item) (err error) {
 	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
 		select {
 		case q.stream <- *itm:
-			return nil
+			return
 		default:
 			// Leak the item to DLQ.
-			err := q.c().DLQ.Enqueue(itm.payload)
-			q.mw().QueueLeak()
-			return err
+			if q.c().LeakDirection == LeakDirectionFront {
+				// Front direction, first need to extract item to leak from queue front.
+				for i := 0; i < leakAttempts; i++ {
+					itmf := <-q.stream
+					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
+						return
+					}
+					q.mw().QueueLeak(q.c().LeakDirection.String())
+					select {
+					case q.stream <- *itm:
+						return
+					default:
+						continue
+					}
+				}
+			} else {
+				// Rear direction, just leak item.
+				err = q.c().DLQ.Enqueue(itm.payload)
+				q.mw().QueueLeak(q.c().LeakDirection.String())
+			}
 		}
 	} else {
 		// Regular put (blocking mode).
 		q.stream <- *itm
-		return nil
 	}
+	return
 }
 
 // Size return actual size of the queue.
@@ -320,7 +337,7 @@ func (q *Queue) close(force bool) error {
 			itm := <-q.stream
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.mw().QueueLeak()
+				q.mw().QueueLeak(LeakDirectionFront.String())
 			} else {
 				q.mw().QueueLost()
 			}

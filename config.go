@@ -76,6 +76,8 @@ type Config struct {
 	// Put failed items to DLQ.
 	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
 	FailToDLQ bool
+	// LeakDirection indicates queue side to leak items (rear or front).
+	LeakDirection LeakDirection
 
 	// DelayInterval between item enqueue and processing.
 	// Settings this param enables delayed execution (DE) feature.
