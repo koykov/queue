@@ -79,6 +79,8 @@ type Config struct {
 	// LeakDirection indicates queue side to leak items (rear or front).
 	LeakDirection LeakDirection
 	// FrontLeakAttempts indicates how many times queue may be shifted to free up space for new rear item.
+	// On limit overflow rear direction will use by fallback.
+	// Low values required.
 	// If this param omit defaultFrontLeakAttempts (5) will use instead.
 	FrontLeakAttempts uint32
 
