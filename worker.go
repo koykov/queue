@@ -120,7 +120,7 @@ func (w *worker) await(queue *Queue) {
 					_ = queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
-					w.mw().QueueLeak()
+					w.mw().QueueLeak(w.c().LeakDirection.String())
 				}
 			}
 		case WorkerStatusIdle:

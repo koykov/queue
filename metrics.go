@@ -25,7 +25,8 @@ type MetricsWriter interface {
 	// QueueRetry registers total amount of retries.
 	QueueRetry()
 	// QueueLeak registers item's leak from the full queue.
-	QueueLeak()
+	// Param dir indicates leak direction and may be "rear" or "front".
+	QueueLeak(dir string)
 	// QueueLost registers lost items missed queue and DLQ.
 	QueueLost()
 }
