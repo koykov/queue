@@ -78,6 +78,9 @@ type Config struct {
 	FailToDLQ bool
 	// LeakDirection indicates queue side to leak items (rear or front).
 	LeakDirection LeakDirection
+	// FrontLeakAttempts indicates how many times queue may be shifted to free up space for new rear item.
+	// If this param omit defaultFrontLeakAttempts (5) will use instead.
+	FrontLeakAttempts uint32
 
 	// DelayInterval between item enqueue and processing.
 	// Settings this param enables delayed execution (DE) feature.

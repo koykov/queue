@@ -10,7 +10,7 @@ const (
 	// incoming item in the queue.
 	LeakDirectionFront
 
-	leakAttempts = 5
+	defaultFrontLeakAttempts = 5
 )
 
 func (ld LeakDirection) String() string {

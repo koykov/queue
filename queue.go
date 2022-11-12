@@ -157,6 +157,10 @@ func (q *Queue) init() {
 		c.HeartbeatInterval = defaultHeartbeatInterval
 	}
 
+	if c.LeakDirection == LeakDirectionFront && c.FrontLeakAttempts == 0 {
+		c.FrontLeakAttempts = defaultFrontLeakAttempts
+	}
+
 	// Create the stream.
 	q.stream = make(stream, c.Capacity)
 
@@ -246,7 +250,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 			// Leak the item to DLQ.
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
-				for i := 0; i < leakAttempts; i++ {
+				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
 					itmf := <-q.stream
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						return
