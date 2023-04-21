@@ -13,7 +13,7 @@ func TransitTo(queue queue.Interface) *Transit {
 	return &w
 }
 
-func (w Transit) Do(x interface{}) error {
+func (w Transit) Do(x any) error {
 	if w.queue == nil {
 		return queue.ErrNoQueue
 	}

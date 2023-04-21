@@ -3,7 +3,7 @@ package queue
 // Interface describes queue interface.
 type Interface interface {
 	// Enqueue puts item to the queue.
-	Enqueue(x interface{}) error
+	Enqueue(x any) error
 	// Size return actual size of the queue.
 	Size() int
 	// Capacity return max size of the queue.
@@ -17,5 +17,5 @@ type Interface interface {
 // Worker describes queue worker interface.
 type Worker interface {
 	// Do process the item.
-	Do(x interface{}) error
+	Do(x any) error
 }

@@ -24,16 +24,16 @@ func (w *AsyncChain) Bind(workers ...queue.Worker) *AsyncChain {
 
 // Do asynchronously process the item.
 // Each worker in chain will be called for processing. AsyncChain will stop processing on first failed worker.
-func (w AsyncChain) Do(x interface{}) (err error) {
+func (w *AsyncChain) Do(x any) (err error) {
 	var (
 		wg sync.WaitGroup
 		ef uint32
 	)
-	for i := 0; i < len(w); i++ {
+	for i := 0; i < len(*w); i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			if err1 := w[i].Do(x); err1 != nil {
+			if err1 := (*w)[i].Do(x); err1 != nil {
 				if atomic.AddUint32(&ef, 1) == 1 {
 					err = err1
 				}
