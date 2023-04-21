@@ -63,7 +63,7 @@ type Queue struct {
 
 // item is a wrapper for queue element with retries count.
 type item struct {
-	payload interface{}
+	payload any
 	retries uint32
 	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
 }
@@ -213,7 +213,7 @@ func (q *Queue) init() {
 }
 
 // Enqueue puts x to the queue.
-func (q *Queue) Enqueue(x interface{}) error {
+func (q *Queue) Enqueue(x any) error {
 	q.once.Do(q.init)
 	// Check if enqueue is possible.
 	if status := q.getStatus(); status == StatusClose || status == StatusFail {

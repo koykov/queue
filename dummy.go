@@ -22,8 +22,8 @@ func (DummyMetrics) QueueLost()                                  {}
 // It just leaks data to the trash.
 type DummyDLQ struct{}
 
-func (DummyDLQ) Enqueue(_ interface{}) error { return nil }
-func (DummyDLQ) Size() int                   { return 0 }
-func (DummyDLQ) Capacity() int               { return 0 }
-func (DummyDLQ) Rate() float32               { return 0 }
-func (DummyDLQ) Close() error                { return nil }
+func (DummyDLQ) Enqueue(_ any) error { return nil }
+func (DummyDLQ) Size() int           { return 0 }
+func (DummyDLQ) Capacity() int       { return 0 }
+func (DummyDLQ) Rate() float32       { return 0 }
+func (DummyDLQ) Close() error        { return nil }

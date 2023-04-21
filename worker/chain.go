@@ -19,9 +19,9 @@ func (w *Chain) Bind(workers ...queue.Worker) *Chain {
 
 // Do process the item.
 // Each worker in chain will be called for processing. Chain will stop processing on first failed worker.
-func (w Chain) Do(x interface{}) (err error) {
-	for i := 0; i < len(w); i++ {
-		if err = w[i].Do(x); err != nil {
+func (w *Chain) Do(x any) (err error) {
+	for i := 0; i < len(*w); i++ {
+		if err = (*w)[i].Do(x); err != nil {
 			return
 		}
 	}
