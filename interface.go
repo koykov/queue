@@ -1,9 +1,14 @@
 package queue
 
-// Interface describes queue interface.
-type Interface interface {
+// Enqueuer describes component that can enqueue items.
+type Enqueuer interface {
 	// Enqueue puts item to the queue.
 	Enqueue(x any) error
+}
+
+// Interface describes queue interface.
+type Interface interface {
+	Enqueuer
 	// Size return actual size of the queue.
 	Size() int
 	// Capacity return max size of the queue.
