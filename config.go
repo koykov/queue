@@ -72,7 +72,7 @@ type Config struct {
 	Worker Worker
 	// Dead letter queue to catch leaky items.
 	// Setting this param enables leaky feature.
-	DLQ Interface
+	DLQ Enqueuer
 	// Put failed items to DLQ.
 	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
 	FailToDLQ bool
