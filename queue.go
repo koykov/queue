@@ -40,8 +40,8 @@ type Queue struct {
 
 	// Actual queue status.
 	status Status
-	// Internal items stream.
-	stream stream
+	// Internal engine.
+	engine engine
 
 	mux sync.Mutex
 	// Workers pool.
@@ -67,9 +67,6 @@ type item struct {
 	retries uint32
 	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
 }
-
-// Items stream.
-type stream chan item
 
 // realtimeParams describes queue params for current time.
 type realtimeParams struct {
@@ -161,8 +158,14 @@ func (q *Queue) init() {
 		c.FrontLeakAttempts = defaultFrontLeakAttempts
 	}
 
-	// Create the stream.
-	q.stream = make(stream, c.Capacity)
+	// Create the engine.
+	// todo: check Config.QoS
+	q.engine = &fifo{}
+	if err := q.engine.init(c); err != nil {
+		q.Err = err
+		q.status = StatusFail
+		return
+	}
 
 	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
@@ -243,25 +246,17 @@ func (q *Queue) renqueue(itm *item) (err error) {
 	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
-		select {
-		case q.stream <- *itm:
-			return
-		default:
+		if !q.engine.put(itm, true) {
 			// Leak the item to DLQ.
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
-					itmf := <-q.stream
+					itmf := <-q.engine.getc()
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						return
 					}
 					q.mw().QueueLeak(LeakDirectionFront)
-					select {
-					case q.stream <- *itm:
-						return
-					default:
-						continue
-					}
+					q.engine.put(itm, true)
 				}
 				// Front leak failed, fallback to rear direction.
 			}
@@ -271,24 +266,24 @@ func (q *Queue) renqueue(itm *item) (err error) {
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.stream <- *itm
+		q.engine.put(itm, false)
 	}
 	return
 }
 
 // Size return actual size of the queue.
 func (q *Queue) Size() int {
-	return len(q.stream)
+	return q.engine.size()
 }
 
 // Capacity return max size of the queue.
 func (q *Queue) Capacity() int {
-	return cap(q.stream)
+	return q.engine.cap()
 }
 
 // Rate returns size to capacity ratio.
 func (q *Queue) Rate() float32 {
-	return float32(len(q.stream)) / float32(cap(q.stream))
+	return float32(q.engine.size()) / float32(q.engine.cap())
 }
 
 // Close gracefully stops the queue.
@@ -337,8 +332,8 @@ func (q *Queue) close(force bool) error {
 		}
 		q.mux.Unlock()
 		// Throw all remaining items to DLQ or trash.
-		for len(q.stream) > 0 {
-			itm := <-q.stream
+		for q.engine.size() > 0 {
+			itm := <-q.engine.getc()
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
 				q.mw().QueueLeak(LeakDirectionFront)
@@ -349,9 +344,7 @@ func (q *Queue) close(force bool) error {
 	}
 	// Close the stream.
 	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	close(q.stream)
-
-	return nil
+	return q.engine.close()
 }
 
 // Internal calibration helper.

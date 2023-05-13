@@ -19,6 +19,15 @@ type Interface interface {
 	Close() error
 }
 
+type engine interface {
+	init(config *Config) error
+	put(itm *item, block bool) bool
+	getc() chan item
+	size() int
+	cap() int
+	close() error
+}
+
 // Worker describes queue worker interface.
 type Worker interface {
 	// Do process the item.

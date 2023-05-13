@@ -13,6 +13,7 @@ const (
 type QoS struct {
 	Algo      QoSAlgo
 	Egress    uint64
+	FQChunk   uint64
 	Evaluator PriorityEvaluator
 	Queues    []QoSQueue
 }
@@ -23,5 +24,5 @@ type QoSQueue struct {
 }
 
 type PriorityEvaluator interface {
-	Eval(float64) uint
+	Eval(weight float64) uint
 }
