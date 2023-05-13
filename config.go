@@ -43,6 +43,11 @@ type Config struct {
 	// If this param omit defaultHeartbeatInterval (1 second) will use instead.
 	HeartbeatInterval time.Duration
 
+	// QoS scheduling settings.
+	// If this param omit FIFO queue will init by default.
+	// See qos.go
+	QoS *QoS
+
 	// Minimum workers number.
 	// Setting this param less than WorkersMax enables balancing feature.
 	WorkersMin uint32
