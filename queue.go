@@ -246,7 +246,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
-		if !q.engine.put(itm, true) {
+		if !q.engine.put(itm, false) {
 			// Leak the item to DLQ.
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
@@ -256,7 +256,11 @@ func (q *Queue) renqueue(itm *item) (err error) {
 						return
 					}
 					q.mw().QueueLeak(LeakDirectionFront)
-					q.engine.put(itm, true)
+					if q.engine.put(itm, false) {
+						return
+					} else {
+						continue
+					}
 				}
 				// Front leak failed, fallback to rear direction.
 			}
@@ -266,7 +270,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.engine.put(itm, false)
+		q.engine.put(itm, true)
 	}
 	return
 }

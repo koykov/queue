@@ -19,7 +19,7 @@ func (e *fifo) put(itm *item, block bool) bool {
 		}
 	}
 	e.c <- *itm
-	return false
+	return true
 }
 
 func (e *fifo) getc() chan item {

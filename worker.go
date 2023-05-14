@@ -12,8 +12,7 @@ const (
 	WorkerStatusIdle WorkerStatus = iota
 	WorkerStatusActive
 	WorkerStatusSleep
-)
-const (
+
 	sigInit signal = iota
 	sigSleep
 	sigWakeup
