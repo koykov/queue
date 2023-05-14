@@ -3,11 +3,14 @@ package queue
 import "errors"
 
 var (
+	ErrNoConfig    = errors.New("no config provided")
 	ErrNoCapacity  = errors.New("capacity must be greater than zero")
 	ErrNoWorker    = errors.New("no worker provided")
 	ErrNoWorkers   = errors.New("no workers available")
 	ErrNoQueue     = errors.New("no queue provided")
 	ErrQueueClosed = errors.New("queue closed")
+
+	ErrNoQoS = errors.New("no QoS config provided")
 
 	ErrSchedMinGtMax = errors.New("min workers greater than max")
 	ErrSchedZeroMax  = errors.New("max workers must be greater than 0")

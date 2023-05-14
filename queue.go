@@ -76,6 +76,9 @@ type realtimeParams struct {
 
 // New makes new queue instance and initialize it according config params.
 func New(config *Config) (*Queue, error) {
+	if config == nil {
+		return nil, ErrNoConfig
+	}
 	q := &Queue{
 		// Make a copy of config instance to protect queue from changing params after start.
 		config: config.Copy(),
@@ -87,6 +90,11 @@ func New(config *Config) (*Queue, error) {
 // Init queue.
 func (q *Queue) init() {
 	c := q.config
+	if c == nil {
+		q.Err = ErrNoConfig
+		q.status = StatusFail
+		return
+	}
 
 	// Check mandatory params.
 	if c.Capacity == 0 {

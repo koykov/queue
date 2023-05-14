@@ -1,5 +1,10 @@
 package queue
 
+const (
+	defaultEgressPercent = uint8(5)
+	defaultRRPacketSize  = uint16(4)
+)
+
 type QoSAlgo uint8
 
 const (
@@ -11,18 +16,14 @@ const (
 )
 
 type QoS struct {
-	Algo      QoSAlgo
-	Egress    uint64
-	FQChunk   uint64
-	Evaluator PriorityEvaluator
-	Queues    []QoSQueue
+	Algo          QoSAlgo
+	EgressPercent uint8
+	RRPacketSize  uint16
+	Evaluator     PriorityEvaluator
+	Queues        []QoSQueue
 }
 
 type QoSQueue struct {
 	Name            string
 	CapacityPercent uint8
-}
-
-type PriorityEvaluator interface {
-	Eval(weight float64) uint
 }

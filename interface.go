@@ -25,6 +25,12 @@ type Worker interface {
 	Do(x any) error
 }
 
+// PriorityEvaluator calculates priority of items comes to PQ.
+type PriorityEvaluator interface {
+	// Eval returns index of sub-queue.
+	Eval(x any) uint
+}
+
 // Internal engine definition.
 type engine interface {
 	// Init engine using config.
