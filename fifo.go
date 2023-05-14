@@ -1,5 +1,6 @@
 package queue
 
+// FIFO engine implementation.
 type fifo struct {
 	c chan item
 }

@@ -19,17 +19,26 @@ type Interface interface {
 	Close() error
 }
 
-type engine interface {
-	init(config *Config) error
-	put(itm *item, block bool) bool
-	getc() chan item
-	size() int
-	cap() int
-	close() error
-}
-
 // Worker describes queue worker interface.
 type Worker interface {
 	// Do process the item.
 	Do(x any) error
+}
+
+// Internal engine definition.
+type engine interface {
+	// Init engine using config.
+	init(config *Config) error
+	// Put new item to the engine in blocking or non-blocking mode.
+	// Returns true/false for non-blocking mode.
+	// Always returns true in blocking mode.
+	put(itm *item, block bool) bool
+	// Provide access to output channel.
+	getc() chan item
+	// Return count of collected items.
+	size() int
+	// Returns the whole capacity.
+	cap() int
+	// Close the engine.
+	close() error
 }
