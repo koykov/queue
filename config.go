@@ -112,5 +112,8 @@ func (c *Config) Copy() *Config {
 	if c.Schedule != nil {
 		cpy.Schedule = c.Schedule.Copy()
 	}
+	if c.QoS != nil {
+		cpy.QoS = c.QoS.Copy()
+	}
 	return &cpy
 }
