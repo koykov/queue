@@ -97,7 +97,7 @@ func (q *Queue) init() {
 	}
 
 	// Check mandatory params.
-	if c.Capacity == 0 {
+	if c.Capacity == 0 && c.QoS == nil {
 		q.Err = ErrNoCapacity
 		q.status = StatusFail
 		return

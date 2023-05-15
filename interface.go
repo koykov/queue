@@ -25,9 +25,9 @@ type Worker interface {
 	Do(x any) error
 }
 
-// PriorityEvaluator calculates priority of items comes to PQ.
+// PriorityEvaluator calculates priority percent of items comes to PQ.
 type PriorityEvaluator interface {
-	// Eval returns index of sub-queue.
+	// Eval returns priority percent of x.
 	Eval(x any) uint
 }
 

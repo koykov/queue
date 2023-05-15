@@ -23,7 +23,7 @@ const (
 // Config describes queue properties and behavior.
 type Config struct {
 	// Queue capacity.
-	// Mandatory param.
+	// Mandatory param if QoS config omitted. QoS (if provided) summing capacity will overwrite this field.
 	Capacity uint64
 	// MaxRetries determines the maximum number of item processing retries.
 	// If MaxRetries is exceeded, the item will send to DLQ (if possible).

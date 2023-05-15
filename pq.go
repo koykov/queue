@@ -1,7 +1,8 @@
 package queue
 
 type pq struct {
-	pool []chan item
+	pool  []chan item
+	prior [100]uint
 }
 
 func (e *pq) init(config *Config) error {
