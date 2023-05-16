@@ -1,6 +1,9 @@
 package queue
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type QoSAlgo uint8
 
@@ -61,6 +64,31 @@ func (q *QoS) AddNamedQueue(name string, capacity, weight uint64) *QoS {
 		Weight:   weight,
 	})
 	return q
+}
+
+func (q *QoS) Validate() error {
+	if q.Algo > WRR {
+		return ErrQoSUnknownAlgo
+	}
+	if q.Evaluator == nil {
+		return ErrQoSNoEvaluator
+	}
+	if len(q.Queues) == 0 {
+		return ErrQoSNoQueues
+	}
+	for i := 0; i < len(q.Queues); i++ {
+		q1 := q.Queues[i]
+		if len(q1.Name) == 0 {
+			return fmt.Errorf("QoS: queue at index %d has no name", i)
+		}
+		if q1.Capacity == 0 {
+			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
+		}
+		if q1.Weight == 0 {
+			return fmt.Errorf("QoS: queue #%s is senseless due to no weight", q1.Name)
+		}
+	}
+	return nil
 }
 
 func (q *QoS) Copy() *QoS {
