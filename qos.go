@@ -8,8 +8,9 @@ const (
 	PQ  QoSAlgo = iota // Priority Queuing
 	RR                 // Round-Robin
 	WRR                // Weighted Round-Robin
-	// FQ                 // Fair Queuing
-	// WFQ                // Weighted Fair Queuing
+	// DWRR                // Dynamic Weighted Round-Robin
+	// FQ                  // Fair Queuing
+	// WFQ                 // Weighted Fair Queuing
 )
 
 type QoSQueue struct {
@@ -23,6 +24,29 @@ type QoS struct {
 	EgressCapacity uint64
 	Evaluator      PriorityEvaluator
 	Queues         []QoSQueue
+}
+
+func NewQoS(algo QoSAlgo, eval PriorityEvaluator) *QoS {
+	q := QoS{
+		Algo:      algo,
+		Evaluator: eval,
+	}
+	return &q
+}
+
+func (q *QoS) SetAlgo(algo QoSAlgo) *QoS {
+	q.Algo = algo
+	return q
+}
+
+func (q *QoS) SetEvaluator(eval PriorityEvaluator) *QoS {
+	q.Evaluator = eval
+	return q
+}
+
+func (q *QoS) SetEgressCapacity(cap uint64) *QoS {
+	q.EgressCapacity = cap
+	return q
 }
 
 func (q *QoS) AddQueue(capacity, weight uint64) *QoS {
