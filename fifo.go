@@ -35,7 +35,7 @@ func (e *fifo) cap() int {
 	return cap(e.c)
 }
 
-func (e *fifo) close() error {
+func (e *fifo) close(_ bool) error {
 	close(e.c)
 	return nil
 }

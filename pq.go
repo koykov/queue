@@ -28,6 +28,6 @@ func (e *pq) cap() int {
 	return 0
 }
 
-func (e *pq) close() error {
+func (e *pq) close(force bool) error {
 	return nil
 }

@@ -364,7 +364,7 @@ func (q *Queue) close(force bool) error {
 	}
 	// Close the stream.
 	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	return q.engine.close()
+	return q.engine.close(force)
 }
 
 // Internal calibration helper.

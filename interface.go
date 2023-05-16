@@ -46,5 +46,5 @@ type engine interface {
 	// Returns the whole capacity.
 	cap() int
 	// Close the engine.
-	close() error
+	close(force bool) error
 }
