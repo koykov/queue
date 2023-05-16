@@ -167,10 +167,18 @@ func (q *Queue) init() {
 	}
 
 	// Create the engine.
-	// todo: check Config.QoS
-	q.engine = &fifo{}
-	if err := q.engine.init(c); err != nil {
-		q.Err = err
+	switch {
+	case c.QoS != nil:
+		if q.Err = c.QoS.Validate(); q.Err != nil {
+			q.status = StatusFail
+			return
+		}
+		c.Capacity = c.QoS.SummingCapacity()
+		q.engine = &pq{}
+	default:
+		q.engine = &fifo{}
+	}
+	if q.Err = q.engine.init(c); q.Err != nil {
 		q.status = StatusFail
 		return
 	}
