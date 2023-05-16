@@ -15,6 +15,7 @@ const (
 	// FQ                  // Fair Queuing
 	// WFQ                 // Weighted Fair Queuing
 )
+const defaultEgressCapacity = uint64(64)
 
 type QoSQueue struct {
 	Name     string
@@ -31,8 +32,9 @@ type QoS struct {
 
 func NewQoS(algo QoSAlgo, eval PriorityEvaluator) *QoS {
 	q := QoS{
-		Algo:      algo,
-		Evaluator: eval,
+		Algo:           algo,
+		EgressCapacity: defaultEgressCapacity,
+		Evaluator:      eval,
 	}
 	return &q
 }
@@ -89,6 +91,17 @@ func (q *QoS) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (q *QoS) SummingCapacity() (c uint64) {
+	if q.EgressCapacity == 0 {
+		q.EgressCapacity = defaultEgressCapacity
+	}
+	c += q.EgressCapacity
+	for i := 0; i < len(q.Queues); i++ {
+		c += q.Queues[i].Capacity
+	}
+	return
 }
 
 func (q *QoS) Copy() *QoS {
