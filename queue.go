@@ -2,6 +2,7 @@ package queue
 
 import (
 	"encoding/json"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -169,6 +170,7 @@ func (q *Queue) init() {
 	// Create the engine.
 	switch {
 	case c.QoS != nil:
+		sort.Sort(c.QoS)
 		if q.Err = c.QoS.Validate(); q.Err != nil {
 			q.status = StatusFail
 			return
