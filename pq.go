@@ -1,14 +1,16 @@
 package queue
 
 import (
+	"context"
 	"math"
 	"sync/atomic"
 )
 
 type pq struct {
-	pool  []chan item
-	prior [100]uint32
-	conf  *Config
+	pool   []chan item
+	prior  [100]uint32
+	conf   *Config
+	cancel context.CancelFunc
 }
 
 func (e *pq) init(config *Config) error {
@@ -21,10 +23,23 @@ func (e *pq) init(config *Config) error {
 	e.rebalancePB()
 
 	// Create channels.
-	// ...
+	for i := 0; i < len(e.conf.QoS.Queues); i++ {
+		e.pool = append(e.pool, make(chan item, e.conf.QoS.Queues[i].Capacity))
+	}
 
 	// Start scheduler.
-	// ...
+	var ctx context.Context
+	ctx, e.cancel = context.WithCancel(context.Background())
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// ...
+			}
+		}
+	}(ctx)
 	return nil
 }
 
