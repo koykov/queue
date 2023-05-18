@@ -70,3 +70,12 @@ func (e *pq) rebalancePB() {
 		qi += mxp
 	}
 }
+
+func (e *pq) assertPB(expect [100]uint32) (int, bool) {
+	for i := 0; i < 100; i++ {
+		if e.prior[i] != expect[i] {
+			return i, false
+		}
+	}
+	return -1, true
+}
