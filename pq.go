@@ -1,29 +1,24 @@
 package queue
 
+import (
+	"math"
+	"sync/atomic"
+)
+
 type pq struct {
 	pool  []chan item
 	prior [100]uint32
+	conf  *Config
 }
 
 func (e *pq) init(config *Config) error {
 	if config.QoS == nil {
 		return ErrNoQoS
 	}
-	qos := config.QoS
+	e.conf = config
 
 	// Priorities buffer calculation.
-	var tw uint64
-	for i := 0; i < len(qos.Queues); i++ {
-		tw += qos.Queues[i].Weight
-	}
-	var qi uint32
-	for i := 0; i < len(qos.Queues); i++ {
-		mxp := uint32(float64(qos.Queues[i].Weight) / float64(tw))
-		for i := qi; i < mxp; i++ {
-			e.prior[i] = i
-		}
-		qi = mxp
-	}
+	e.rebalancePB()
 
 	// Create channels.
 	// ...
@@ -51,4 +46,27 @@ func (e *pq) cap() int {
 
 func (e *pq) close(force bool) error {
 	return nil
+}
+
+func (e *pq) rebalancePB() {
+	mxu32 := func(a, b uint32) uint32 {
+		if a > b {
+			return a
+		}
+		return b
+	}
+	qos := e.conf.QoS
+	var tw uint64
+	for i := 0; i < len(qos.Queues); i++ {
+		tw += qos.Queues[i].Weight
+	}
+	var qi uint32
+	for i := 0; i < len(qos.Queues); i++ {
+		rate := math.Round(float64(qos.Queues[i].Weight) / float64(tw) * 100)
+		mxp := uint32(rate)
+		for j := qi; j < mxu32(qi+mxp, 100); j++ {
+			atomic.StoreUint32(&e.prior[j], uint32(i))
+		}
+		qi += mxp
+	}
 }
