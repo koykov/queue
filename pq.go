@@ -8,6 +8,7 @@ import (
 
 type pq struct {
 	pool   []chan item
+	egress chan item
 	prior  [100]uint32
 	conf   *Config
 	cancel context.CancelFunc
@@ -18,14 +19,16 @@ func (e *pq) init(config *Config) error {
 		return ErrNoQoS
 	}
 	e.conf = config
+	qos := e.conf.QoS
 
 	// Priorities buffer calculation.
 	e.rebalancePB()
 
 	// Create channels.
-	for i := 0; i < len(e.conf.QoS.Queues); i++ {
-		e.pool = append(e.pool, make(chan item, e.conf.QoS.Queues[i].Capacity))
+	for i := 0; i < len(qos.Queues); i++ {
+		e.pool = append(e.pool, make(chan item, qos.Queues[i].Capacity))
 	}
+	e.egress = make(chan item, qos.EgressCapacity)
 
 	// Start scheduler.
 	var ctx context.Context

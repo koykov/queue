@@ -14,6 +14,7 @@ var (
 	ErrQoSUnknownAlgo = errors.New("unknown QoS scheduling algorithm")
 	ErrQoSNoEvaluator = errors.New("no QoS priority evaluator provided")
 	ErrQoSNoQueues    = errors.New("no QoS queues")
+	ErrEgressReserved = errors.New("name 'egress' is reserved")
 
 	ErrSchedMinGtMax = errors.New("min workers greater than max")
 	ErrSchedZeroMax  = errors.New("max workers must be greater than 0")

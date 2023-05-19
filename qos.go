@@ -14,6 +14,8 @@ const (
 	// DWRR                // Dynamic Weighted Round-Robin
 	// FQ                  // Fair Queuing
 	// WFQ                 // Weighted Fair Queuing
+
+	egress = "egress"
 )
 const defaultEgressCapacity = uint64(64)
 
@@ -82,6 +84,9 @@ func (q *QoS) Validate() error {
 		q1 := q.Queues[i]
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
+		}
+		if q1.Name == egress {
+			return ErrEgressReserved
 		}
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
