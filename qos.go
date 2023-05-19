@@ -80,13 +80,16 @@ func (q *QoS) Validate() error {
 	if len(q.Queues) == 0 {
 		return ErrQoSNoQueues
 	}
+	if len(q.Queues) == 1 {
+		return ErrQoSSenseless
+	}
 	for i := 0; i < len(q.Queues); i++ {
 		q1 := q.Queues[i]
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
 		}
 		if q1.Name == egress {
-			return ErrEgressReserved
+			return ErrQoSEgressReserved
 		}
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
