@@ -47,6 +47,26 @@ func (e *pq) init(config *Config) error {
 }
 
 func (e *pq) put(itm *item, block bool) bool {
+	pp := e.conf.QoS.Evaluator.Eval(itm.payload)
+	if pp == 0 {
+		pp = 1
+	}
+	if pp > 100 {
+		pp = 100
+	}
+	qi := e.prior[pp-1]
+	q := e.pool[qi]
+	if !block {
+		select {
+		case q <- *itm:
+			return true
+		default:
+			return false
+		}
+	} else {
+		q <- *itm
+	}
+
 	return true
 }
 

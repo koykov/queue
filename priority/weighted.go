@@ -2,6 +2,8 @@ package priority
 
 import (
 	"sync"
+
+	"github.com/koykov/queue"
 )
 
 // Weighted priority evaluator.
@@ -14,36 +16,43 @@ type Weighted struct {
 	def  uint
 }
 
-func (e *Weighted) Eval(weight any) uint {
+func (e *Weighted) Eval(x any) uint {
 	e.once.Do(e.init)
 	var w float64
-	switch weight.(type) {
+	switch x.(type) {
+	case queue.Job:
+		job := x.(queue.Job)
+		w = float64(job.Weight)
+	case *queue.Job:
+		job := x.(*queue.Job)
+		w = float64(job.Weight)
+
 	case int:
-		w = float64(weight.(int))
+		w = float64(x.(int))
 	case int8:
-		w = float64(weight.(int8))
+		w = float64(x.(int8))
 	case int16:
-		w = float64(weight.(int16))
+		w = float64(x.(int16))
 	case int32:
-		w = float64(weight.(int32))
+		w = float64(x.(int32))
 	case int64:
-		w = float64(weight.(int64))
+		w = float64(x.(int64))
 
 	case uint:
-		w = float64(weight.(uint))
+		w = float64(x.(uint))
 	case uint8:
-		w = float64(weight.(uint8))
+		w = float64(x.(uint8))
 	case uint16:
-		w = float64(weight.(uint16))
+		w = float64(x.(uint16))
 	case uint32:
-		w = float64(weight.(uint32))
+		w = float64(x.(uint32))
 	case uint64:
-		w = float64(weight.(uint64))
+		w = float64(x.(uint64))
 
 	case float32:
-		w = float64(weight.(float32))
+		w = float64(x.(float32))
 	case float64:
-		w = weight.(float64)
+		w = x.(float64)
 	}
 
 	if w == 0 {

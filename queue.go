@@ -67,7 +67,6 @@ type item struct {
 	payload any
 	retries uint32
 	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
-	weight  uint64
 }
 
 // realtimeParams describes queue params for current time.
@@ -252,7 +251,7 @@ func (q *Queue) Enqueue(x any) error {
 			q.calibrate(true)
 		}
 	}
-	itm := tryJob(x)
+	itm := item{payload: x}
 	if di := q.c().DelayInterval; di > 0 {
 		itm.dexpire = q.clk().Now().Add(di).UnixNano()
 	}
