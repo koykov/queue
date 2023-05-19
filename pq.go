@@ -73,11 +73,11 @@ func (e *pq) rebalancePB() {
 	qos := e.conf.QoS
 	var tw uint64
 	for i := 0; i < len(qos.Queues); i++ {
-		tw += qos.Queues[i].Weight
+		tw += atomic.LoadUint64(&qos.Queues[i].Weight)
 	}
 	var qi uint32
 	for i := 0; i < len(qos.Queues); i++ {
-		rate := math.Round(float64(qos.Queues[i].Weight) / float64(tw) * 100)
+		rate := math.Round(float64(atomic.LoadUint64(&qos.Queues[i].Weight)) / float64(tw) * 100)
 		mxp := uint32(rate)
 		for j := qi; j < mxu32(qi+mxp, 100); j++ {
 			atomic.StoreUint32(&e.prior[j], uint32(i))
