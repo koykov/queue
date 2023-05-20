@@ -13,7 +13,8 @@ type pq struct {
 	conf   *Config
 	cancel context.CancelFunc
 
-	cp uint64
+	cp  uint64
+	rri uint64
 }
 
 func (e *pq) init(config *Config) error {
@@ -46,7 +47,7 @@ func (e *pq) init(config *Config) error {
 				case PQ:
 					e.shiftPQ()
 				case RR:
-					//
+					e.shiftRR()
 				case WRR:
 					//
 				}
@@ -130,6 +131,14 @@ func (e *pq) shiftPQ() {
 			e.egress <- itm
 			return
 		}
+	}
+}
+
+func (e *pq) shiftRR() {
+	pi := atomic.AddUint64(&e.rri, 1) % uint64(len(e.pool))
+	itm, ok := <-e.pool[pi]
+	if ok {
+		e.egress <- itm
 	}
 }
 
