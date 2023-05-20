@@ -76,7 +76,7 @@ func (w *worker) await(queue *Queue) {
 			<-w.ctl
 		case WorkerStatusActive:
 			// Read itm from the stream.
-			itm, ok := <-queue.engine.getc()
+			itm, ok := queue.engine.pullOK()
 			if !ok {
 				// Stream is closed. Immediately stop and exit.
 				w.stop(true)

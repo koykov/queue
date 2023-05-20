@@ -88,6 +88,15 @@ func (e *pq) getc() chan item {
 	return e.egress
 }
 
+func (e *pq) pull() item {
+	return <-e.egress
+}
+
+func (e *pq) pullOK() (item, bool) {
+	itm, ok := <-e.egress
+	return itm, ok
+}
+
 func (e *pq) size() (sz int) {
 	for i := 0; i < len(e.pool); i++ {
 		sz += len(e.pool[i])

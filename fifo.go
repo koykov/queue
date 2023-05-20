@@ -27,6 +27,15 @@ func (e *fifo) getc() chan item {
 	return e.c
 }
 
+func (e *fifo) pull() item {
+	return <-e.c
+}
+
+func (e *fifo) pullOK() (item, bool) {
+	itm, ok := <-e.c
+	return itm, ok
+}
+
 func (e *fifo) size() int {
 	return len(e.c)
 }

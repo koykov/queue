@@ -41,6 +41,10 @@ type engine interface {
 	put(itm *item, block bool) bool
 	// Provide access to output channel.
 	getc() chan item
+	// fetch and return item.
+	pull() item
+	// try to fetch and return item.
+	pullOK() (item, bool)
 	// Return count of collected items.
 	size() int
 	// Returns the whole capacity.
