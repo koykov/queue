@@ -42,7 +42,14 @@ func (e *pq) init(config *Config) error {
 			case <-ctx.Done():
 				return
 			default:
-				// ...
+				switch qos.Algo {
+				case PQ:
+					e.shiftPQ()
+				case RR:
+					//
+				case WRR:
+					//
+				}
 			}
 		}
 	}(ctx)
@@ -113,6 +120,16 @@ func (e *pq) rebalancePB() {
 			atomic.StoreUint32(&e.prior[j], uint32(i))
 		}
 		qi += mxp
+	}
+}
+
+func (e *pq) shiftPQ() {
+	for i := 0; i < len(e.pool); i++ {
+		itm, ok := <-e.pool[i]
+		if ok {
+			e.egress <- itm
+			return
+		}
 	}
 }
 
