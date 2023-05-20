@@ -23,7 +23,7 @@ func (e *pq) init(config *Config) error {
 		return ErrNoQoS
 	}
 	e.conf = config
-	qos := e.conf.QoS
+	qos := e.qos()
 	e.cp = qos.SummingCapacity()
 	e.pl = uint64(len(qos.Queues))
 	e.rri = math.MaxUint64
@@ -61,7 +61,7 @@ func (e *pq) init(config *Config) error {
 }
 
 func (e *pq) put(itm *item, block bool) bool {
-	pp := e.conf.QoS.Evaluator.Eval(itm.payload)
+	pp := e.qos().Evaluator.Eval(itm.payload)
 	if pp == 0 {
 		pp = 1
 	}
@@ -70,17 +70,21 @@ func (e *pq) put(itm *item, block bool) bool {
 	}
 	qi := atomic.LoadUint32(&e.prior[pp-1])
 	q := e.pool[qi]
+	qn := e.qos().Queues[qi].Name
 	if !block {
 		select {
 		case q <- *itm:
+			e.mw().SubQueuePut(qn)
 			return true
 		default:
+			e.mw().SubQueueDrop(qn)
 			return false
 		}
 	} else {
 		q <- *itm
 	}
 
+	e.mw().SubQueuePut(qn)
 	return true
 }
 
@@ -89,11 +93,16 @@ func (e *pq) getc() chan item {
 }
 
 func (e *pq) pull() item {
-	return <-e.egress
+	itm := <-e.egress
+	e.mw().SubQueuePull(egress)
+	return itm
 }
 
 func (e *pq) pullOK() (item, bool) {
 	itm, ok := <-e.egress
+	if ok {
+		e.mw().SubQueuePull(egress)
+	}
 	return itm, ok
 }
 
@@ -125,7 +134,7 @@ func (e *pq) rebalancePB() {
 		}
 		return b
 	}
-	qos := e.conf.QoS
+	qos := e.qos()
 	var tw uint64
 	for i := 0; i < len(qos.Queues); i++ {
 		tw += atomic.LoadUint64(&qos.Queues[i].Weight)
@@ -145,6 +154,9 @@ func (e *pq) shiftPQ() {
 	for i := 0; i < len(e.pool); i++ {
 		itm, ok := <-e.pool[i]
 		if ok {
+			qn := e.qos().Queues[i].Name
+			e.mw().SubQueuePull(qn)
+			e.mw().SubQueuePut(egress)
 			e.egress <- itm
 			return
 		}
@@ -155,6 +167,9 @@ func (e *pq) shiftRR() {
 	pi := atomic.AddUint64(&e.rri, 1) % e.pl
 	itm, ok := <-e.pool[pi]
 	if ok {
+		qn := e.qos().Queues[pi].Name
+		e.mw().SubQueuePull(qn)
+		e.mw().SubQueuePut(egress)
 		e.egress <- itm
 	}
 }
@@ -166,4 +181,12 @@ func (e *pq) assertPB(expect [100]uint32) (int, bool) {
 		}
 	}
 	return -1, true
+}
+
+func (e *pq) qos() *QoS {
+	return e.conf.QoS
+}
+
+func (e *pq) mw() MetricsWriter {
+	return e.conf.MetricsWriter
 }

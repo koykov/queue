@@ -2,7 +2,7 @@ package queue
 
 import "time"
 
-// MetricsWriter is an interface of metrics handler.
+// MetricsWriter is an interface of queue metrics handler.
 // See example of implementations https://github.com/koykov/metrics_writers/tree/master/queue.
 type MetricsWriter interface {
 	// WorkerSetup set initial workers statuses.
@@ -29,4 +29,11 @@ type MetricsWriter interface {
 	QueueLeak(dir LeakDirection)
 	// QueueLost registers lost items missed queue and DLQ.
 	QueueLost()
+
+	// SubQueuePut registers income of new item to the sub-queue.
+	SubQueuePut(subq string)
+	// SubQueuePull registers outgoing of item from the sub-queue.
+	SubQueuePull(subq string)
+	// SubQueueDrop registers item's drop from the full queue.
+	SubQueueDrop(subq string)
 }
