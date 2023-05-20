@@ -12,6 +12,8 @@ type pq struct {
 	prior  [100]uint32
 	conf   *Config
 	cancel context.CancelFunc
+
+	cp uint64
 }
 
 func (e *pq) init(config *Config) error {
@@ -20,6 +22,7 @@ func (e *pq) init(config *Config) error {
 	}
 	e.conf = config
 	qos := e.conf.QoS
+	e.cp = qos.SummingCapacity()
 
 	// Priorities buffer calculation.
 	e.rebalancePB()
@@ -71,15 +74,19 @@ func (e *pq) put(itm *item, block bool) bool {
 }
 
 func (e *pq) getc() chan item {
-	return nil
+	return e.egress
 }
 
-func (e *pq) size() int {
-	return 0
+func (e *pq) size() (sz int) {
+	for i := 0; i < len(e.pool); i++ {
+		sz += len(e.pool[i])
+	}
+	sz += len(e.egress)
+	return
 }
 
 func (e *pq) cap() int {
-	return 0
+	return int(e.cp)
 }
 
 func (e *pq) close(force bool) error {

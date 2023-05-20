@@ -77,6 +77,9 @@ func (q *QoS) Validate() error {
 	if q.Evaluator == nil {
 		return ErrQoSNoEvaluator
 	}
+	if q.EgressCapacity == 0 {
+		q.EgressCapacity = defaultEgressCapacity
+	}
 	if len(q.Queues) == 0 {
 		return ErrQoSNoQueues
 	}
@@ -112,9 +115,6 @@ func (q *QoS) Validate() error {
 }
 
 func (q *QoS) SummingCapacity() (c uint64) {
-	if q.EgressCapacity == 0 {
-		q.EgressCapacity = defaultEgressCapacity
-	}
 	c += q.EgressCapacity
 	for i := 0; i < len(q.Queues); i++ {
 		c += q.Queues[i].Capacity
