@@ -271,6 +271,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
 					itmf, _ := q.engine.dequeue(true)
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
+						q.mw().QueueLost()
 						return
 					}
 					q.mw().QueueLeak(LeakDirectionFront)
