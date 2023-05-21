@@ -10,7 +10,7 @@ func (e *fifo) init(config *Config) error {
 	return nil
 }
 
-func (e *fifo) put(itm *item, block bool) bool {
+func (e *fifo) enqueue(itm *item, block bool) bool {
 	if !block {
 		select {
 		case e.c <- *itm:
@@ -23,15 +23,11 @@ func (e *fifo) put(itm *item, block bool) bool {
 	return true
 }
 
-func (e *fifo) getc() chan item {
-	return e.c
-}
-
-func (e *fifo) pull() item {
-	return <-e.c
-}
-
-func (e *fifo) pullOK() (item, bool) {
+func (e *fifo) dequeue(block bool) (item, bool) {
+	if block {
+		itm := <-e.c
+		return itm, true
+	}
 	itm, ok := <-e.c
 	return itm, ok
 }

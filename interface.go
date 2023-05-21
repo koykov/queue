@@ -38,13 +38,11 @@ type engine interface {
 	// Put new item to the engine in blocking or non-blocking mode.
 	// Returns true/false for non-blocking mode.
 	// Always returns true in blocking mode.
-	put(itm *item, block bool) bool
-	// Provide access to output channel.
-	getc() chan item
-	// fetch and return item.
-	pull() item
-	// try to fetch and return item.
-	pullOK() (item, bool)
+	enqueue(itm *item, block bool) bool
+	// Get item from the engine in blocking or non-blocking mode.
+	// Returns true/false for non-blocking mode.
+	// Always returns true in blocking mode.
+	dequeue(block bool) (item, bool)
 	// Return count of collected items.
 	size() int
 	// Returns the whole capacity.

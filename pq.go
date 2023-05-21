@@ -60,7 +60,7 @@ func (e *pq) init(config *Config) error {
 	return nil
 }
 
-func (e *pq) put(itm *item, block bool) bool {
+func (e *pq) enqueue(itm *item, block bool) bool {
 	pp := e.qos().Evaluator.Eval(itm.payload)
 	if pp == 0 {
 		pp = 1
@@ -88,17 +88,12 @@ func (e *pq) put(itm *item, block bool) bool {
 	return true
 }
 
-func (e *pq) getc() chan item {
-	return e.egress
-}
-
-func (e *pq) pull() item {
-	itm := <-e.egress
-	e.mw().SubQueuePull(egress)
-	return itm
-}
-
-func (e *pq) pullOK() (item, bool) {
+func (e *pq) dequeue(block bool) (item, bool) {
+	if block {
+		itm := <-e.egress
+		e.mw().SubQueuePull(egress)
+		return itm, true
+	}
 	itm, ok := <-e.egress
 	if ok {
 		e.mw().SubQueuePull(egress)

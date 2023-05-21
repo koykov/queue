@@ -264,17 +264,17 @@ func (q *Queue) renqueue(itm *item) (err error) {
 	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
-		if !q.engine.put(itm, false) {
+		if !q.engine.enqueue(itm, false) {
 			// Leak the item to DLQ.
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
-					itmf := q.engine.pull()
+					itmf, _ := q.engine.dequeue(true)
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						return
 					}
 					q.mw().QueueLeak(LeakDirectionFront)
-					if q.engine.put(itm, false) {
+					if q.engine.enqueue(itm, false) {
 						return
 					} else {
 						continue
@@ -288,7 +288,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.engine.put(itm, true)
+		q.engine.enqueue(itm, true)
 	}
 	return
 }
@@ -355,7 +355,7 @@ func (q *Queue) close(force bool) error {
 		q.mux.Unlock()
 		// Throw all remaining items to DLQ or trash.
 		for q.engine.size() > 0 {
-			itm := q.engine.pull()
+			itm, _ := q.engine.dequeue(true)
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
 				q.mw().QueueLeak(LeakDirectionFront)
