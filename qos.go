@@ -128,15 +128,3 @@ func (q *QoS) Copy() *QoS {
 	cpy.Queues = append([]QoSQueue(nil), q.Queues...)
 	return &cpy
 }
-
-func (q *QoS) Len() int {
-	return len(q.Queues)
-}
-
-func (q *QoS) Less(i, j int) bool {
-	return q.Queues[i].Weight < q.Queues[j].Weight
-}
-
-func (q *QoS) Swap(i, j int) {
-	q.Queues[i], q.Queues[j] = q.Queues[j], q.Queues[i]
-}

@@ -182,7 +182,7 @@ func (e *pq) shiftRR() {
 	}
 }
 
-func (e *pq) assertPB(expect [100]uint32) (int, bool) {
+func (e *pq) assertPT(expect [100]uint32) (int, bool) {
 	for i := 0; i < 100; i++ {
 		if e.prior[i] != expect[i] {
 			return i, false
