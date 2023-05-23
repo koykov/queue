@@ -101,16 +101,6 @@ func (q *QoS) Validate() error {
 			return fmt.Errorf("QoS: queue #%s is senseless due to no weight", q1.Name)
 		}
 	}
-	for i := 0; i < len(q.Queues); i++ {
-		for j := 0; j < len(q.Queues); j++ {
-			if i == j {
-				continue
-			}
-			if q.Queues[i].Weight == q.Queues[j].Weight {
-				return fmt.Errorf("QoS: queues #%s and #%s have the same weights", q.Queues[i].Name, q.Queues[j].Name)
-			}
-		}
-	}
 	return nil
 }
 
