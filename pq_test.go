@@ -6,17 +6,22 @@ import (
 
 func TestPQ(t *testing.T) {
 	t.Run("priority table", func(t *testing.T) {
-		expectPT := [100]uint32{
-			0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2,
+		expectPT := [200]uint32{
+			0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+
+			0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
 			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 		}
 		conf := Config{
 			QoS: NewQoS(RR, DummyPriorityEvaluator{}).
-				AddNamedQueue("high", 200, 120).
-				AddNamedQueue("medium", 50, 400).
-				AddNamedQueue("low", 750, 1200),
+				AddQueue(QoSQueue{Name: "high", Capacity: 200, IngressWeight: 120}).
+				AddQueue(QoSQueue{Name: "medium", Capacity: 50, IngressWeight: 400}).
+				AddQueue(QoSQueue{Name: "low", Capacity: 750, IngressWeight: 1200}),
 		}
+		_ = conf.QoS.Validate()
 		q := pq{}
 		err := q.init(&conf)
 		if err != nil {
@@ -25,5 +30,6 @@ func TestPQ(t *testing.T) {
 		if i, ok := q.assertPT(expectPT); !ok {
 			t.Errorf("PT mismatch at position %d", i)
 		}
+		_ = q.close(false)
 	})
 }

@@ -15,14 +15,16 @@ const (
 	// FQ                  // Fair Queuing
 	// WFQ                 // Weighted Fair Queuing
 
-	egress = "egress"
+	ingress = "ingress"
+	egress  = "egress"
 )
 const defaultEgressCapacity = uint64(64)
 
 type QoSQueue struct {
-	Name     string
-	Capacity uint64
-	Weight   uint64
+	Name          string
+	Capacity      uint64
+	IngressWeight uint64
+	EgressWeight  uint64
 }
 
 type QoS struct {
@@ -56,17 +58,11 @@ func (q *QoS) SetEgressCapacity(cap uint64) *QoS {
 	return q
 }
 
-func (q *QoS) AddQueue(capacity, weight uint64) *QoS {
-	name := strconv.Itoa(len(q.Queues))
-	return q.AddNamedQueue(name, capacity, weight)
-}
-
-func (q *QoS) AddNamedQueue(name string, capacity, weight uint64) *QoS {
-	q.Queues = append(q.Queues, QoSQueue{
-		Name:     name,
-		Capacity: capacity,
-		Weight:   weight,
-	})
+func (q *QoS) AddQueue(subq QoSQueue) *QoS {
+	if len(subq.Name) == 0 {
+		subq.Name = strconv.Itoa(len(q.Queues))
+	}
+	q.Queues = append(q.Queues, subq)
 	return q
 }
 
@@ -87,9 +83,18 @@ func (q *QoS) Validate() error {
 		return ErrQoSSenseless
 	}
 	for i := 0; i < len(q.Queues); i++ {
-		q1 := q.Queues[i]
+		q1 := &q.Queues[i]
+		if q1.EgressWeight == 0 && q1.IngressWeight > 0 {
+			q1.EgressWeight = q1.IngressWeight
+		}
+		if q1.IngressWeight == 0 && q1.EgressWeight > 0 {
+			q1.IngressWeight = q1.EgressWeight
+		}
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
+		}
+		if q1.Name == ingress {
+			return ErrQoSIngressReserved
 		}
 		if q1.Name == egress {
 			return ErrQoSEgressReserved
@@ -97,8 +102,11 @@ func (q *QoS) Validate() error {
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
 		}
-		if q1.Weight == 0 {
-			return fmt.Errorf("QoS: queue #%s is senseless due to no weight", q1.Name)
+		if q1.IngressWeight == 0 {
+			return fmt.Errorf("QoS: queue #%s is senseless due to no ingress weight", q1.Name)
+		}
+		if q1.EgressWeight == 0 {
+			return fmt.Errorf("QoS: queue #%s is senseless due to no egress weight", q1.Name)
 		}
 	}
 	return nil

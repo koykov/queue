@@ -9,7 +9,7 @@ import (
 type pq struct {
 	pool   []chan item
 	egress chan item
-	prior  [100]uint32
+	prior  [200]uint32
 	conf   *Config
 	cancel context.CancelFunc
 
@@ -52,7 +52,7 @@ func (e *pq) init(config *Config) error {
 				case RR:
 					e.shiftRR()
 				case WRR:
-					//
+					e.shiftWRR()
 				}
 			}
 		}
@@ -142,17 +142,36 @@ func (e *pq) rebalancePB() {
 		}
 		return b
 	}
+	lim := func(x, lim uint32) uint32 {
+		if x > lim {
+			return lim
+		}
+		return x
+	}
 	qos := e.qos()
 	var tw uint64
 	for i := 0; i < len(qos.Queues); i++ {
-		tw += atomic.LoadUint64(&qos.Queues[i].Weight)
+		tw += atomic.LoadUint64(&qos.Queues[i].IngressWeight)
 	}
 	var qi uint32
 	for i := 0; i < len(qos.Queues); i++ {
-		rate := math.Round(float64(atomic.LoadUint64(&qos.Queues[i].Weight)) / float64(tw) * 100)
+		rate := math.Ceil(float64(atomic.LoadUint64(&qos.Queues[i].IngressWeight)) / float64(tw) * 100)
 		mxp := uint32(rate)
 		for j := qi; j < mxu32(qi+mxp, 100); j++ {
-			atomic.StoreUint32(&e.prior[j], uint32(i))
+			atomic.StoreUint32(&e.prior[lim(j, 99)], uint32(i))
+		}
+		qi += mxp
+	}
+
+	tw, qi = 0, 0
+	for i := 0; i < len(qos.Queues); i++ {
+		tw += atomic.LoadUint64(&qos.Queues[i].EgressWeight)
+	}
+	for i := 0; i < len(qos.Queues); i++ {
+		rate := math.Ceil(float64(atomic.LoadUint64(&qos.Queues[i].EgressWeight)) / float64(tw) * 100)
+		mxp := uint32(rate)
+		for j := qi; j < mxu32(qi+mxp, 100); j++ {
+			atomic.StoreUint32(&e.prior[lim(j+100, 199)], uint32(i))
 		}
 		qi += mxp
 	}
@@ -182,8 +201,12 @@ func (e *pq) shiftRR() {
 	}
 }
 
-func (e *pq) assertPT(expect [100]uint32) (int, bool) {
-	for i := 0; i < 100; i++ {
+func (e *pq) shiftWRR() {
+	// ...
+}
+
+func (e *pq) assertPT(expect [200]uint32) (int, bool) {
+	for i := 0; i < 200; i++ {
 		if e.prior[i] != expect[i] {
 			return i, false
 		}
