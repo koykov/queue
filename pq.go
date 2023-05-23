@@ -7,11 +7,12 @@ import (
 )
 
 type pq struct {
-	pool   []chan item
-	egress chan item
-	prior  [200]uint32
-	conf   *Config
-	cancel context.CancelFunc
+	pool    []chan item
+	egress  chan item
+	inprior [100]uint32
+	eprior  [100]uint32
+	conf    *Config
+	cancel  context.CancelFunc
 
 	cp  uint64
 	pl  uint64
@@ -68,7 +69,7 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	if pp > 100 {
 		pp = 100
 	}
-	itm.subqi = atomic.LoadUint32(&e.prior[pp-1])
+	itm.subqi = atomic.LoadUint32(&e.inprior[pp-1])
 	q := e.pool[itm.subqi]
 	qn := e.qos().Queues[itm.subqi].Name
 	e.mw().SubQueuePut(qn)
@@ -158,7 +159,7 @@ func (e *pq) rebalancePB() {
 		rate := math.Ceil(float64(atomic.LoadUint64(&qos.Queues[i].IngressWeight)) / float64(tw) * 100)
 		mxp := uint32(rate)
 		for j := qi; j < mxu32(qi+mxp, 100); j++ {
-			atomic.StoreUint32(&e.prior[lim(j, 99)], uint32(i))
+			atomic.StoreUint32(&e.inprior[lim(j, 99)], uint32(i))
 		}
 		qi += mxp
 	}
@@ -171,7 +172,7 @@ func (e *pq) rebalancePB() {
 		rate := math.Ceil(float64(atomic.LoadUint64(&qos.Queues[i].EgressWeight)) / float64(tw) * 100)
 		mxp := uint32(rate)
 		for j := qi; j < mxu32(qi+mxp, 100); j++ {
-			atomic.StoreUint32(&e.prior[lim(j+100, 199)], uint32(i))
+			atomic.StoreUint32(&e.eprior[lim(j, 99)], uint32(i))
 		}
 		qi += mxp
 	}
@@ -205,9 +206,14 @@ func (e *pq) shiftWRR() {
 	// ...
 }
 
-func (e *pq) assertPT(expect [200]uint32) (int, bool) {
-	for i := 0; i < 200; i++ {
-		if e.prior[i] != expect[i] {
+func (e *pq) assertPT(expectIPT, expectEPT [100]uint32) (int, bool) {
+	for i := 0; i < 100; i++ {
+		if e.inprior[i] != expectIPT[i] {
+			return i, false
+		}
+	}
+	for i := 0; i < 100; i++ {
+		if e.eprior[i] != expectEPT[i] {
 			return i, false
 		}
 	}
