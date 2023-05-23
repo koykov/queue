@@ -43,6 +43,8 @@ type engine interface {
 	// Returns true/false for non-blocking mode.
 	// Always returns true in blocking mode.
 	dequeue(block bool) (item, bool)
+	// Get item from sub-queue by given index.
+	dequeueSQ(subqi uint32, block bool) (item, bool)
 	// Return count of collected items.
 	size() int
 	// Returns the whole capacity.

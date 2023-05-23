@@ -66,7 +66,8 @@ type Queue struct {
 type item struct {
 	payload any
 	retries uint32
-	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
+	dexpire int64  // Delayed execution expire time (Unix ns timestamp).
+	subqi   uint32 // Sub-queue index.
 }
 
 // realtimeParams describes queue params for current time.
@@ -269,7 +270,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
-					itmf, _ := q.engine.dequeue(true)
+					itmf, _ := q.engine.dequeueSQ(itm.subqi, true)
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						q.mw().QueueLost()
 						return

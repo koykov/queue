@@ -68,13 +68,13 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	if pp > 100 {
 		pp = 100
 	}
-	qi := atomic.LoadUint32(&e.prior[pp-1])
-	q := e.pool[qi]
-	qn := e.qos().Queues[qi].Name
+	itm.subqi = atomic.LoadUint32(&e.prior[pp-1])
+	q := e.pool[itm.subqi]
+	qn := e.qos().Queues[itm.subqi].Name
+	e.mw().SubQueuePut(qn)
 	if !block {
 		select {
 		case q <- *itm:
-			e.mw().SubQueuePut(qn)
 			return true
 		default:
 			e.mw().SubQueueDrop(qn)
@@ -84,7 +84,6 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 		q <- *itm
 	}
 
-	e.mw().SubQueuePut(qn)
 	return true
 }
 
@@ -97,6 +96,20 @@ func (e *pq) dequeue(block bool) (item, bool) {
 	itm, ok := <-e.egress
 	if ok {
 		e.mw().SubQueuePull(egress)
+	}
+	return itm, ok
+}
+
+func (e *pq) dequeueSQ(subqi uint32, block bool) (item, bool) {
+	qn := e.qos().Queues[subqi].Name
+	if block {
+		itm := <-e.pool[subqi]
+		e.mw().SubQueuePull(qn)
+		return itm, true
+	}
+	itm, ok := <-e.pool[subqi]
+	if ok {
+		e.mw().SubQueuePull(qn)
 	}
 	return itm, ok
 }
@@ -151,8 +164,8 @@ func (e *pq) shiftPQ() {
 		if ok {
 			qn := e.qos().Queues[i].Name
 			e.mw().SubQueuePull(qn)
-			e.mw().SubQueuePut(egress)
 			e.egress <- itm
+			e.mw().SubQueuePut(egress)
 			return
 		}
 	}

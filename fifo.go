@@ -32,6 +32,10 @@ func (e *fifo) dequeue(block bool) (item, bool) {
 	return itm, ok
 }
 
+func (e *fifo) dequeueSQ(_ uint32, block bool) (item, bool) {
+	return e.dequeue(block)
+}
+
 func (e *fifo) size() int {
 	return len(e.c)
 }
