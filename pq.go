@@ -14,9 +14,10 @@ type pq struct {
 	conf    *Config
 	cancel  context.CancelFunc
 
-	cp  uint64
-	pl  uint64
-	rri uint64
+	cp   uint64
+	pl   uint64
+	rri  uint64
+	wrri uint64
 }
 
 func (e *pq) init(config *Config) error {
@@ -27,7 +28,7 @@ func (e *pq) init(config *Config) error {
 	qos := e.qos()
 	e.cp = qos.SummingCapacity()
 	e.pl = uint64(len(qos.Queues))
-	e.rri = math.MaxUint64
+	e.rri, e.wrri = math.MaxUint64, math.MaxUint64
 
 	// Priorities buffer calculation.
 	e.rebalancePB()
@@ -203,7 +204,15 @@ func (e *pq) shiftRR() {
 }
 
 func (e *pq) shiftWRR() {
-	// ...
+	pi := atomic.AddUint64(&e.wrri, 1) % 100
+	qi := e.eprior[pi]
+	itm, ok := <-e.pool[qi]
+	if ok {
+		qn := e.qos().Queues[pi].Name
+		e.mw().SubQueuePull(qn)
+		e.mw().SubQueuePut(egress)
+		e.egress <- itm
+	}
 }
 
 func (e *pq) assertPT(expectIPT, expectEPT [100]uint32) (int, bool) {
