@@ -42,23 +42,25 @@ func (e *pq) init(config *Config) error {
 	// Start scheduler.
 	var ctx context.Context
 	ctx, e.cancel = context.WithCancel(context.Background())
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				switch qos.Algo {
-				case PQ:
-					e.shiftPQ()
-				case RR:
-					e.shiftRR()
-				case WRR:
-					e.shiftWRR()
+	for i := uint32(0); i < qos.EgressWorkers; i++ {
+		go func(ctx context.Context) {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					switch qos.Algo {
+					case PQ:
+						e.shiftPQ()
+					case RR:
+						e.shiftRR()
+					case WRR:
+						e.shiftWRR()
+					}
 				}
 			}
-		}
-	}(ctx)
+		}(ctx)
+	}
 	return nil
 }
 

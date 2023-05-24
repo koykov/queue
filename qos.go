@@ -18,7 +18,10 @@ const (
 	ingress = "ingress"
 	egress  = "egress"
 )
-const defaultEgressCapacity = uint64(64)
+const (
+	defaultEgressCapacity = uint64(64)
+	defaultEgressWorkers  = uint32(1)
+)
 
 type QoSQueue struct {
 	Name          string
@@ -30,6 +33,7 @@ type QoSQueue struct {
 type QoS struct {
 	Algo           QoSAlgo
 	EgressCapacity uint64
+	EgressWorkers  uint32
 	Evaluator      PriorityEvaluator
 	Queues         []QoSQueue
 }
@@ -58,6 +62,11 @@ func (q *QoS) SetEgressCapacity(cap uint64) *QoS {
 	return q
 }
 
+func (q *QoS) SetEgressWorkers(workers uint32) *QoS {
+	q.EgressWorkers = workers
+	return q
+}
+
 func (q *QoS) AddQueue(subq QoSQueue) *QoS {
 	if len(subq.Name) == 0 {
 		subq.Name = strconv.Itoa(len(q.Queues))
@@ -75,6 +84,9 @@ func (q *QoS) Validate() error {
 	}
 	if q.EgressCapacity == 0 {
 		q.EgressCapacity = defaultEgressCapacity
+	}
+	if q.EgressWorkers == 0 {
+		q.EgressWorkers = defaultEgressWorkers
 	}
 	if len(q.Queues) == 0 {
 		return ErrQoSNoQueues
