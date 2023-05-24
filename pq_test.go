@@ -12,15 +12,16 @@ func TestPQ(t *testing.T) {
 			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 		}
 		expectEPT := [100]uint32{
-			0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
-			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+			0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+			0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+			0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+			0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
 		}
 		conf := Config{
 			QoS: NewQoS(RR, DummyPriorityEvaluator{}).
-				AddQueue(QoSQueue{Name: "high", Capacity: 200, IngressWeight: 120}).
-				AddQueue(QoSQueue{Name: "medium", Capacity: 50, IngressWeight: 400}).
-				AddQueue(QoSQueue{Name: "low", Capacity: 750, IngressWeight: 1200}),
+				AddQueue(QoSQueue{Name: "high", Capacity: 200, IngressWeight: 120, EgressWeight: 50}).
+				AddQueue(QoSQueue{Name: "medium", Capacity: 50, IngressWeight: 400, EgressWeight: 40}).
+				AddQueue(QoSQueue{Name: "low", Capacity: 750, IngressWeight: 1200, EgressWeight: 10}),
 		}
 		_ = conf.QoS.Validate()
 		q := pq{}
