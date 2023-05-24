@@ -208,7 +208,7 @@ func (e *pq) shiftWRR() {
 	qi := e.eprior[pi]
 	itm, ok := <-e.pool[qi]
 	if ok {
-		qn := e.qos().Queues[pi].Name
+		qn := e.qos().Queues[qi].Name
 		e.mw().SubQueuePull(qn)
 		e.mw().SubQueuePut(egress)
 		e.egress <- itm
