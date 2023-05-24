@@ -14,6 +14,7 @@ type pq struct {
 	conf    *Config
 	cancel  context.CancelFunc
 
+	hotq uint32
 	cp   uint64
 	pl   uint64
 	rri  uint64
@@ -91,12 +92,7 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	return true
 }
 
-func (e *pq) dequeue(block bool) (item, bool) {
-	if block {
-		itm := <-e.egress
-		e.mw().SubQueuePull(egress)
-		return itm, true
-	}
+func (e *pq) dequeue() (item, bool) {
 	itm, ok := <-e.egress
 	if ok {
 		e.mw().SubQueuePull(egress)
@@ -104,13 +100,8 @@ func (e *pq) dequeue(block bool) (item, bool) {
 	return itm, ok
 }
 
-func (e *pq) dequeueSQ(subqi uint32, block bool) (item, bool) {
+func (e *pq) dequeueSQ(subqi uint32) (item, bool) {
 	qn := e.qos().Queues[subqi].Name
-	if block {
-		itm := <-e.pool[subqi]
-		e.mw().SubQueuePull(qn)
-		return itm, true
-	}
 	itm, ok := <-e.pool[subqi]
 	if ok {
 		e.mw().SubQueuePull(qn)

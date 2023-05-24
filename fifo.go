@@ -23,17 +23,13 @@ func (e *fifo) enqueue(itm *item, block bool) bool {
 	return true
 }
 
-func (e *fifo) dequeue(block bool) (item, bool) {
-	if block {
-		itm := <-e.c
-		return itm, true
-	}
+func (e *fifo) dequeue() (item, bool) {
 	itm, ok := <-e.c
 	return itm, ok
 }
 
-func (e *fifo) dequeueSQ(_ uint32, block bool) (item, bool) {
-	return e.dequeue(block)
+func (e *fifo) dequeueSQ(_ uint32) (item, bool) {
+	return e.dequeue()
 }
 
 func (e *fifo) size() int {

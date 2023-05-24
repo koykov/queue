@@ -268,7 +268,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
-					itmf, _ := q.engine.dequeueSQ(itm.subqi, true)
+					itmf, _ := q.engine.dequeueSQ(itm.subqi)
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
 						q.mw().QueueLost()
 						return
@@ -355,7 +355,7 @@ func (q *Queue) close(force bool) error {
 		q.mux.Unlock()
 		// Throw all remaining items to DLQ or trash.
 		for q.engine.size() > 0 {
-			itm, _ := q.engine.dequeue(true)
+			itm, _ := q.engine.dequeue()
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
 				q.mw().QueueLeak(LeakDirectionFront)
