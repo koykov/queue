@@ -7,5 +7,5 @@ import "math/rand"
 type Random struct{}
 
 func (Random) Eval(_ any) uint {
-	return uint(rand.Intn(100))
+	return uint(rand.Intn(100)) + 1
 }
