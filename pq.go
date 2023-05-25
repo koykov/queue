@@ -186,12 +186,16 @@ exit:
 
 func (e *pq) shiftPQ() {
 	for i := 0; i < len(e.pool); i++ {
-		itm, ok := <-e.pool[i]
-		if ok {
-			qn := e.qos().Queues[i].Name
-			e.mw().SubQueuePull(qn)
-			e.egress <- itm
-			e.mw().SubQueuePut(egress)
+		select {
+		case itm, ok := <-e.pool[i]:
+			if ok {
+				qn := e.qos().Queues[i].Name
+				e.mw().SubQueuePull(qn)
+				e.egress <- itm
+				e.mw().SubQueuePut(egress)
+				return
+			}
+		default:
 			return
 		}
 	}
@@ -199,24 +203,32 @@ func (e *pq) shiftPQ() {
 
 func (e *pq) shiftRR() {
 	pi := atomic.AddUint64(&e.rri, 1) % e.pl
-	itm, ok := <-e.pool[pi]
-	if ok {
-		qn := e.qos().Queues[pi].Name
-		e.mw().SubQueuePull(qn)
-		e.mw().SubQueuePut(egress)
-		e.egress <- itm
+	select {
+	case itm, ok := <-e.pool[pi]:
+		if ok {
+			qn := e.qos().Queues[pi].Name
+			e.mw().SubQueuePull(qn)
+			e.mw().SubQueuePut(egress)
+			e.egress <- itm
+		}
+	default:
+		return
 	}
 }
 
 func (e *pq) shiftWRR() {
 	pi := atomic.AddUint64(&e.wrri, 1) % 100
 	qi := e.eprior[pi]
-	itm, ok := <-e.pool[qi]
-	if ok {
-		qn := e.qos().Queues[qi].Name
-		e.mw().SubQueuePull(qn)
-		e.mw().SubQueuePut(egress)
-		e.egress <- itm
+	select {
+	case itm, ok := <-e.pool[qi]:
+		if ok {
+			qn := e.qos().Queues[qi].Name
+			e.mw().SubQueuePull(qn)
+			e.mw().SubQueuePut(egress)
+			e.egress <- itm
+		}
+	default:
+		return
 	}
 }
 
