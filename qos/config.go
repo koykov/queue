@@ -5,15 +5,16 @@ import (
 	"strconv"
 )
 
+// Algo represent QoS scheduling algorithm.
 type Algo uint8
 
 const (
 	PQ  Algo = iota // Priority Queuing
 	RR              // Round-Robin
 	WRR             // Weighted Round-Robin
-	// DWRR                // Dynamic Weighted Round-Robin
-	// FQ                  // Fair Queuing
-	// WFQ                 // Weighted Fair Queuing
+	// DWRR                // Dynamic Weighted Round-Robin (todo)
+	// FQ                  // Fair Queuing (idea?)
+	// WFQ                 // Weighted Fair Queuing (idea?)
 
 	Ingress = "ingress"
 	Egress  = "egress"
@@ -24,13 +25,24 @@ const (
 )
 
 type Config struct {
-	Algo           Algo
+	// Chosen algorithm [PQ, RR, WRR].
+	Algo Algo
+	// Egress sub-queue capacity.
+	// If this param omit defaultEgressCapacity (64) will use instead.
 	EgressCapacity uint64
-	EgressWorkers  uint32
-	Evaluator      PriorityEvaluator
-	Queues         []Queue
+	// Count of transit workers between sub-queues and egress sud-queue.
+	// If this param omit defaultEgressWorkers (1) will use instead.
+	// Use with caution!
+	EgressWorkers uint32
+	// Helper to determine priority of incoming items.
+	// Mandatory param.
+	Evaluator PriorityEvaluator
+	// Sub-queues config.
+	// Mandatory param.
+	Queues []Queue
 }
 
+// New makes new QoS config using given params.
 func New(algo Algo, eval PriorityEvaluator) *Config {
 	q := Config{
 		Algo:           algo,
@@ -68,6 +80,7 @@ func (q *Config) AddQueue(subq Queue) *Config {
 	return q
 }
 
+// Validate check QoS config and returns any error encountered.
 func (q *Config) Validate() error {
 	if q.Algo > WRR {
 		return ErrQoSUnknownAlgo
@@ -108,6 +121,7 @@ func (q *Config) Validate() error {
 	return nil
 }
 
+// SummingCapacity returns sum of capacities of all sub-queues (including egress).
 func (q *Config) SummingCapacity() (c uint64) {
 	c += q.EgressCapacity
 	for i := 0; i < len(q.Queues); i++ {
@@ -116,6 +130,7 @@ func (q *Config) SummingCapacity() (c uint64) {
 	return
 }
 
+// Copy copies config instance to protect queue from changing params after start.
 func (q *Config) Copy() *Config {
 	cpy := Config{}
 	cpy = *q
