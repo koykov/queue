@@ -24,10 +24,9 @@ const (
 )
 
 type QoSQueue struct {
-	Name          string
-	Capacity      uint64
-	IngressWeight uint64
-	EgressWeight  uint64
+	Name     string
+	Capacity uint64
+	Weight   uint64
 }
 
 type QoS struct {
@@ -96,12 +95,6 @@ func (q *QoS) Validate() error {
 	}
 	for i := 0; i < len(q.Queues); i++ {
 		q1 := &q.Queues[i]
-		if q1.EgressWeight == 0 && q1.IngressWeight > 0 {
-			q1.EgressWeight = q1.IngressWeight
-		}
-		if q1.IngressWeight == 0 && q1.EgressWeight > 0 {
-			q1.IngressWeight = q1.EgressWeight
-		}
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
 		}
@@ -114,11 +107,8 @@ func (q *QoS) Validate() error {
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
 		}
-		if q1.IngressWeight == 0 {
+		if q1.Weight == 0 {
 			return fmt.Errorf("QoS: queue #%s is senseless due to no ingress weight", q1.Name)
-		}
-		if q1.EgressWeight == 0 {
-			return fmt.Errorf("QoS: queue #%s is senseless due to no egress weight", q1.Name)
 		}
 	}
 	return nil
