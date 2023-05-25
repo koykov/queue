@@ -1,44 +1,38 @@
-package queue
+package qos
 
 import (
 	"fmt"
 	"strconv"
 )
 
-type QoSAlgo uint8
+type Algo uint8
 
 const (
-	PQ  QoSAlgo = iota // Priority Queuing
-	RR                 // Round-Robin
-	WRR                // Weighted Round-Robin
+	PQ  Algo = iota // Priority Queuing
+	RR              // Round-Robin
+	WRR             // Weighted Round-Robin
 	// DWRR                // Dynamic Weighted Round-Robin
 	// FQ                  // Fair Queuing
 	// WFQ                 // Weighted Fair Queuing
 
-	ingress = "ingress"
-	egress  = "egress"
+	Ingress = "ingress"
+	Egress  = "egress"
 )
 const (
 	defaultEgressCapacity = uint64(64)
 	defaultEgressWorkers  = uint32(1)
 )
 
-type QoSQueue struct {
-	Name     string
-	Capacity uint64
-	Weight   uint64
-}
-
-type QoS struct {
-	Algo           QoSAlgo
+type Config struct {
+	Algo           Algo
 	EgressCapacity uint64
 	EgressWorkers  uint32
 	Evaluator      PriorityEvaluator
-	Queues         []QoSQueue
+	Queues         []Queue
 }
 
-func NewQoS(algo QoSAlgo, eval PriorityEvaluator) *QoS {
-	q := QoS{
+func New(algo Algo, eval PriorityEvaluator) *Config {
+	q := Config{
 		Algo:           algo,
 		EgressCapacity: defaultEgressCapacity,
 		Evaluator:      eval,
@@ -46,27 +40,27 @@ func NewQoS(algo QoSAlgo, eval PriorityEvaluator) *QoS {
 	return &q
 }
 
-func (q *QoS) SetAlgo(algo QoSAlgo) *QoS {
+func (q *Config) SetAlgo(algo Algo) *Config {
 	q.Algo = algo
 	return q
 }
 
-func (q *QoS) SetEvaluator(eval PriorityEvaluator) *QoS {
+func (q *Config) SetEvaluator(eval PriorityEvaluator) *Config {
 	q.Evaluator = eval
 	return q
 }
 
-func (q *QoS) SetEgressCapacity(cap uint64) *QoS {
+func (q *Config) SetEgressCapacity(cap uint64) *Config {
 	q.EgressCapacity = cap
 	return q
 }
 
-func (q *QoS) SetEgressWorkers(workers uint32) *QoS {
+func (q *Config) SetEgressWorkers(workers uint32) *Config {
 	q.EgressWorkers = workers
 	return q
 }
 
-func (q *QoS) AddQueue(subq QoSQueue) *QoS {
+func (q *Config) AddQueue(subq Queue) *Config {
 	if len(subq.Name) == 0 {
 		subq.Name = strconv.Itoa(len(q.Queues))
 	}
@@ -74,7 +68,7 @@ func (q *QoS) AddQueue(subq QoSQueue) *QoS {
 	return q
 }
 
-func (q *QoS) Validate() error {
+func (q *Config) Validate() error {
 	if q.Algo > WRR {
 		return ErrQoSUnknownAlgo
 	}
@@ -98,10 +92,10 @@ func (q *QoS) Validate() error {
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
 		}
-		if q1.Name == ingress {
+		if q1.Name == Ingress {
 			return ErrQoSIngressReserved
 		}
-		if q1.Name == egress {
+		if q1.Name == Egress {
 			return ErrQoSEgressReserved
 		}
 		if q1.Capacity == 0 {
@@ -114,7 +108,7 @@ func (q *QoS) Validate() error {
 	return nil
 }
 
-func (q *QoS) SummingCapacity() (c uint64) {
+func (q *Config) SummingCapacity() (c uint64) {
 	c += q.EgressCapacity
 	for i := 0; i < len(q.Queues); i++ {
 		c += q.Queues[i].Capacity
@@ -122,9 +116,9 @@ func (q *QoS) SummingCapacity() (c uint64) {
 	return
 }
 
-func (q *QoS) Copy() *QoS {
-	cpy := QoS{}
+func (q *Config) Copy() *Config {
+	cpy := Config{}
 	cpy = *q
-	cpy.Queues = append([]QoSQueue(nil), q.Queues...)
+	cpy.Queues = append([]Queue(nil), q.Queues...)
 	return &cpy
 }

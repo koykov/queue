@@ -2,6 +2,8 @@ package queue
 
 import (
 	"time"
+
+	"github.com/koykov/queue/qos"
 )
 
 const (
@@ -45,8 +47,8 @@ type Config struct {
 
 	// QoS scheduling settings.
 	// If this param omit FIFO queue will init by default.
-	// See qos.go
-	QoS *QoS
+	// See qos/config.go
+	QoS *qos.Config
 
 	// Minimum workers number.
 	// Setting this param less than WorkersMax enables balancing feature.

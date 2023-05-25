@@ -25,12 +25,6 @@ type Worker interface {
 	Do(x any) error
 }
 
-// PriorityEvaluator calculates priority percent of items comes to PQ.
-type PriorityEvaluator interface {
-	// Eval returns priority percent of x.
-	Eval(x any) uint
-}
-
 // Internal engine definition.
 type engine interface {
 	// Init engine using config.

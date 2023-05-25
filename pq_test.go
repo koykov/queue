@@ -2,6 +2,8 @@ package queue
 
 import (
 	"testing"
+
+	"github.com/koykov/queue/qos"
 )
 
 func TestPQ(t *testing.T) {
@@ -18,10 +20,10 @@ func TestPQ(t *testing.T) {
 			0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1,
 		}
 		conf := Config{
-			QoS: NewQoS(RR, DummyPriorityEvaluator{}).
-				AddQueue(QoSQueue{Name: "high", Capacity: 200, Weight: 120}).
-				AddQueue(QoSQueue{Name: "medium", Capacity: 50, Weight: 400}).
-				AddQueue(QoSQueue{Name: "low", Capacity: 750, Weight: 1200}),
+			QoS: qos.New(qos.RR, qos.DummyPriorityEvaluator{}).
+				AddQueue(qos.Queue{Name: "high", Capacity: 200, Weight: 120}).
+				AddQueue(qos.Queue{Name: "medium", Capacity: 50, Weight: 400}).
+				AddQueue(qos.Queue{Name: "low", Capacity: 750, Weight: 1200}),
 		}
 		_ = conf.QoS.Validate()
 		q := pq{}

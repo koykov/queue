@@ -30,7 +30,3 @@ func (DummyDLQ) Size() int           { return 0 }
 func (DummyDLQ) Capacity() int       { return 0 }
 func (DummyDLQ) Rate() float32       { return 0 }
 func (DummyDLQ) Close() error        { return nil }
-
-type DummyPriorityEvaluator struct{}
-
-func (DummyPriorityEvaluator) Eval(_ any) uint { return 0 }

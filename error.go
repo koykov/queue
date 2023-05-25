@@ -10,14 +10,6 @@ var (
 	ErrNoQueue     = errors.New("no queue provided")
 	ErrQueueClosed = errors.New("queue closed")
 
-	ErrNoQoS              = errors.New("no QoS config provided")
-	ErrQoSUnknownAlgo     = errors.New("unknown QoS scheduling algorithm")
-	ErrQoSNoEvaluator     = errors.New("no QoS priority evaluator provided")
-	ErrQoSNoQueues        = errors.New("no QoS queues")
-	ErrQoSSenseless       = errors.New("QoS is senseless")
-	ErrQoSIngressReserved = errors.New("name 'ingress' is reserved")
-	ErrQoSEgressReserved  = errors.New("name 'egress' is reserved")
-
 	ErrSchedMinGtMax = errors.New("min workers greater than max")
 	ErrSchedZeroMax  = errors.New("max workers must be greater than 0")
 	ErrSchedBadRange = errors.New("schedule range has bad format")
