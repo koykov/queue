@@ -195,7 +195,7 @@ func (e *pq) shiftPQ() {
 				return
 			}
 		default:
-			return
+			continue
 		}
 	}
 }
