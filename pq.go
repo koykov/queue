@@ -14,6 +14,7 @@ type pq struct {
 	conf    *Config
 	cancel  context.CancelFunc
 
+	ew   int32
 	cp   uint64
 	ql   uint64
 	rri  uint64
@@ -43,10 +44,12 @@ func (e *pq) init(config *Config) error {
 	var ctx context.Context
 	ctx, e.cancel = context.WithCancel(context.Background())
 	for i := uint32(0); i < qos.EgressWorkers; i++ {
+		atomic.AddInt32(&e.ew, 1)
 		go func(ctx context.Context) {
 			for {
 				select {
 				case <-ctx.Done():
+					atomic.AddInt32(&e.ew, -1)
 					return
 				default:
 					switch qos.Algo {
@@ -109,10 +112,16 @@ func (e *pq) dequeueSQ(subqi uint32) (item, bool) {
 }
 
 func (e *pq) size() (sz int) {
+	return e.size1(true)
+}
+
+func (e *pq) size1(includingEgress bool) (sz int) {
 	for i := 0; i < len(e.pool); i++ {
 		sz += len(e.pool[i])
 	}
-	sz += len(e.egress)
+	if includingEgress {
+		sz += len(e.egress)
+	}
 	return
 }
 
@@ -121,10 +130,19 @@ func (e *pq) cap() int {
 }
 
 func (e *pq) close(_ bool) error {
+	// Spinlock waiting till sub-queues isn't empty.
+	for e.size1(false) > 0 {
+	}
+	// Stop egress workers.
 	e.cancel()
+	// Close sub-queues channels.
 	for i := 0; i < len(e.pool); i++ {
 		close(e.pool[i])
 	}
+	// Spinlock waiting till all egress workers finished.
+	for atomic.LoadInt32(&e.ew) > 0 {
+	}
+	// Close egress channel.
 	close(e.egress)
 	return nil
 }
