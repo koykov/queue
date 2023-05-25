@@ -34,6 +34,6 @@ type MetricsWriter interface {
 	SubQueuePut(subq string)
 	// SubQueuePull registers outgoing of item from the sub-queue.
 	SubQueuePull(subq string)
-	// SubQueueDrop registers item's drop from the full queue.
-	SubQueueDrop(subq string)
+	// SubQueueLeak registers item's drop from the full queue.
+	SubQueueLeak(subq string)
 }

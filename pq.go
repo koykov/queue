@@ -86,7 +86,7 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 		case q <- *itm:
 			return true
 		default:
-			e.mw().SubQueueDrop(qn)
+			e.mw().SubQueueLeak(qn)
 			return false
 		}
 	} else {

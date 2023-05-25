@@ -19,7 +19,7 @@ func (DummyMetrics) QueueLeak(_ LeakDirection)                   {}
 func (DummyMetrics) QueueLost()                                  {}
 func (DummyMetrics) SubQueuePut(_ string)                        {}
 func (DummyMetrics) SubQueuePull(_ string)                       {}
-func (DummyMetrics) SubQueueDrop(_ string)                       {}
+func (DummyMetrics) SubQueueLeak(_ string)                       {}
 
 // DummyDLQ is a stub DLQ implementation. It does nothing and need for queues with leak tolerance.
 // It just leaks data to the trash.
