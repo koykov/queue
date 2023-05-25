@@ -6,6 +6,7 @@ A queue is a wrapper over channels that has the following features:
 * retryable
 * scheduled
 * delayed execution
+* prioretizable
 * covered with metrics
 * logged
 
