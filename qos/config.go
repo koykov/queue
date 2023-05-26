@@ -83,10 +83,10 @@ func (q *Config) AddQueue(subq Queue) *Config {
 // Validate check QoS config and returns any error encountered.
 func (q *Config) Validate() error {
 	if q.Algo > WRR {
-		return ErrQoSUnknownAlgo
+		return ErrUnknownAlgo
 	}
 	if q.Evaluator == nil {
-		return ErrQoSNoEvaluator
+		return ErrNoEvaluator
 	}
 	if q.EgressCapacity == 0 {
 		q.EgressCapacity = defaultEgressCapacity
@@ -95,21 +95,18 @@ func (q *Config) Validate() error {
 		q.EgressWorkers = defaultEgressWorkers
 	}
 	if len(q.Queues) == 0 {
-		return ErrQoSNoQueues
+		return ErrNoQueues
 	}
 	if len(q.Queues) == 1 {
-		return ErrQoSSenseless
+		return ErrSenseless
 	}
 	for i := 0; i < len(q.Queues); i++ {
 		q1 := &q.Queues[i]
 		if len(q1.Name) == 0 {
 			return fmt.Errorf("QoS: queue at index %d has no name", i)
 		}
-		if q1.Name == Ingress {
-			return ErrQoSIngressReserved
-		}
-		if q1.Name == Egress {
-			return ErrQoSEgressReserved
+		if q1.Name == Ingress || q1.Name == Egress {
+			return ErrNameReserved
 		}
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
