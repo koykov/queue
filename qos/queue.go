@@ -9,5 +9,6 @@ type Queue struct {
 	Capacity uint64
 	// Sub-queue weight.
 	// Big value means that sub-queue will income more items.
+	// Mandatory param.
 	Weight uint64
 }

@@ -115,7 +115,7 @@ func (q *Config) Validate() error {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
 		}
 		if q1.Weight == 0 {
-			return fmt.Errorf("QoS: queue #%s is senseless due to no ingress weight", q1.Name)
+			return fmt.Errorf("QoS: queue #%s is senseless due to no weight", q1.Name)
 		}
 	}
 	return nil
