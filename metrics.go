@@ -30,10 +30,10 @@ type MetricsWriter interface {
 	// QueueLost registers lost items missed queue and DLQ.
 	QueueLost()
 
-	// SubQueuePut registers income of new item to the sub-queue.
-	SubQueuePut(subq string)
-	// SubQueuePull registers outgoing of item from the sub-queue.
-	SubQueuePull(subq string)
-	// SubQueueLeak registers item's drop from the full queue.
-	SubQueueLeak(subq string)
+	// SubqPut registers income of new item to the sub-queue.
+	SubqPut(subq string)
+	// SubqPull registers outgoing of item from the sub-queue.
+	SubqPull(subq string)
+	// SubqLeak registers item's drop from the full queue.
+	SubqLeak(subq string)
 }

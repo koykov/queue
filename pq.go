@@ -79,14 +79,14 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	}
 	itm.subqi = atomic.LoadUint32(&e.inprior[pp-1])
 	q := e.pool[itm.subqi]
-	qn := e.qos().Queues[itm.subqi].Name
-	e.mw().SubQueuePut(qn)
+	qn := e.qn(itm.subqi)
+	e.mw().SubqPut(qn)
 	if !block {
 		select {
 		case q <- *itm:
 			return true
 		default:
-			e.mw().SubQueueLeak(qn)
+			e.mw().SubqLeak(qn)
 			return false
 		}
 	} else {
@@ -99,16 +99,15 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 func (e *pq) dequeue() (item, bool) {
 	itm, ok := <-e.egress
 	if ok {
-		e.mw().SubQueuePull(qos.Egress)
+		e.mw().SubqPull(qos.Egress)
 	}
 	return itm, ok
 }
 
 func (e *pq) dequeueSQ(subqi uint32) (item, bool) {
-	qn := e.qos().Queues[subqi].Name
 	itm, ok := <-e.pool[subqi]
 	if ok {
-		e.mw().SubQueuePull(qn)
+		e.mw().SubqPull(e.qn(subqi))
 	}
 	return itm, ok
 }
@@ -208,10 +207,9 @@ func (e *pq) shiftPQ() {
 		select {
 		case itm, ok := <-e.pool[i]:
 			if ok {
-				qn := e.qos().Queues[i].Name
-				e.mw().SubQueuePull(qn)
+				e.mw().SubqPull(e.qn(uint32(i)))
 				e.egress <- itm
-				e.mw().SubQueuePut(qos.Egress)
+				e.mw().SubqPut(qos.Egress)
 				return
 			}
 		default:
@@ -221,13 +219,12 @@ func (e *pq) shiftPQ() {
 }
 
 func (e *pq) shiftRR() {
-	pi := atomic.AddUint64(&e.rri, 1) % e.ql
+	qi := atomic.AddUint64(&e.rri, 1) % e.ql
 	select {
-	case itm, ok := <-e.pool[pi]:
+	case itm, ok := <-e.pool[qi]:
 		if ok {
-			qn := e.qos().Queues[pi].Name
-			e.mw().SubQueuePull(qn)
-			e.mw().SubQueuePut(qos.Egress)
+			e.mw().SubqPull(e.qn(uint32(qi)))
+			e.mw().SubqPut(qos.Egress)
 			e.egress <- itm
 		}
 	default:
@@ -241,9 +238,8 @@ func (e *pq) shiftWRR() {
 	select {
 	case itm, ok := <-e.pool[qi]:
 		if ok {
-			qn := e.qos().Queues[qi].Name
-			e.mw().SubQueuePull(qn)
-			e.mw().SubQueuePut(qos.Egress)
+			e.mw().SubqPull(e.qn(qi))
+			e.mw().SubqPut(qos.Egress)
 			e.egress <- itm
 		}
 	default:
@@ -271,4 +267,8 @@ func (e *pq) qos() *qos.Config {
 
 func (e *pq) mw() MetricsWriter {
 	return e.conf.MetricsWriter
+}
+
+func (e *pq) qn(i uint32) string {
+	return e.qos().Queues[i].Name
 }
