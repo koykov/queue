@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"sync/atomic"
+	"time"
 
 	"github.com/koykov/queue/qos"
 )
@@ -16,22 +17,24 @@ type pq struct {
 	conf    *Config
 	cancel  context.CancelFunc
 
-	ew   int32
-	cp   uint64
-	ql   uint64
-	rri  uint64
-	wrri uint64
+	ew  int32         // active egress workers
+	ewl int32         // locked egress workers
+	ewc chan struct{} // egress workers control
+	ia  int64         // idle attempts
+	cp  uint64        // summing capacity
+	ql  uint64        // sub-queues length
+	rri uint64        // RR/WRR counter
 }
 
 func (e *pq) init(config *Config) error {
 	if config.QoS == nil {
-		return qos.ErrNoQoS
+		return qos.ErrNoConfig
 	}
 	e.conf = config
 	q := e.qos()
 	e.cp = q.SummingCapacity()
 	e.ql = uint64(len(q.Queues))
-	e.rri, e.wrri = math.MaxUint64, math.MaxUint64
+	e.rri = math.MaxUint64
 
 	// Priorities buffer calculation.
 	e.rebalancePB()
@@ -40,12 +43,13 @@ func (e *pq) init(config *Config) error {
 	for i := 0; i < len(q.Queues); i++ {
 		e.pool = append(e.pool, make(chan item, q.Queues[i].Capacity))
 	}
-	e.egress = make(chan item, q.EgressCapacity)
+	e.egress = make(chan item, q.Egress.Capacity)
+	e.ewc = make(chan struct{}, q.Egress.Workers)
 
 	// Start scheduler.
 	var ctx context.Context
 	ctx, e.cancel = context.WithCancel(context.Background())
-	for i := uint32(0); i < q.EgressWorkers; i++ {
+	for i := uint32(0); i < q.Egress.Workers; i++ {
 		atomic.AddInt32(&e.ew, 1)
 		go func(ctx context.Context) {
 			for {
@@ -54,13 +58,24 @@ func (e *pq) init(config *Config) error {
 					atomic.AddInt32(&e.ew, -1)
 					return
 				default:
+					var ok bool
 					switch q.Algo {
 					case qos.PQ:
-						e.shiftPQ()
+						ok = e.shiftPQ()
 					case qos.RR:
-						e.shiftRR()
+						ok = e.shiftRR()
 					case qos.WRR:
-						e.shiftWRR()
+						ok = e.shiftWRR()
+					}
+					if !ok {
+						if atomic.AddInt64(&e.ia, 1) > int64(q.Egress.IdleThreshold) {
+							select {
+							case <-time.After(q.Egress.IdleTimeout):
+								//
+							case <-e.ewc:
+								//
+							}
+						}
 					}
 				}
 			}
@@ -84,6 +99,7 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	if !block {
 		select {
 		case q <- *itm:
+			e.tryFreeEW()
 			return true
 		default:
 			e.mw().SubqLeak(qn)
@@ -91,9 +107,24 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 		}
 	} else {
 		q <- *itm
+		e.tryFreeEW()
 	}
 
 	return true
+}
+
+func (e *pq) tryFreeEW() {
+	atomic.StoreInt64(&e.ia, 0)
+	if atomic.LoadInt64(&e.ia) > int64(e.qos().Egress.IdleThreshold) {
+		for i := 0; i < int(atomic.LoadInt32(&e.ew)); i++ {
+			select {
+			case e.ewc <- struct{}{}:
+				//
+			default:
+				//
+			}
+		}
+	}
 }
 
 func (e *pq) dequeue() (item, bool) {
@@ -202,7 +233,7 @@ exit:
 	return
 }
 
-func (e *pq) shiftPQ() {
+func (e *pq) shiftPQ() bool {
 	for i := 0; i < len(e.pool); i++ {
 		select {
 		case itm, ok := <-e.pool[i]:
@@ -210,41 +241,46 @@ func (e *pq) shiftPQ() {
 				e.mw().SubqPull(e.qn(uint32(i)))
 				e.egress <- itm
 				e.mw().SubqPut(qos.Egress)
-				return
+				return true
 			}
 		default:
 			continue
 		}
 	}
+	return false
 }
 
-func (e *pq) shiftRR() {
+func (e *pq) shiftRR() bool {
 	qi := atomic.AddUint64(&e.rri, 1) % e.ql
 	select {
 	case itm, ok := <-e.pool[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(uint32(qi)))
-			e.mw().SubqPut(qos.Egress)
 			e.egress <- itm
+			e.mw().SubqPut(qos.Egress)
+			return true
 		}
 	default:
-		return
+		return false
 	}
+	return false
 }
 
-func (e *pq) shiftWRR() {
-	pi := atomic.AddUint64(&e.wrri, 1) % 100
+func (e *pq) shiftWRR() bool {
+	pi := atomic.AddUint64(&e.rri, 1) % 100
 	qi := e.eprior[pi]
 	select {
 	case itm, ok := <-e.pool[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(qi))
-			e.mw().SubqPut(qos.Egress)
 			e.egress <- itm
+			e.mw().SubqPut(qos.Egress)
+			return true
 		}
 	default:
-		return
+		return false
 	}
+	return false
 }
 
 func (e *pq) assertPT(expectIPT, expectEPT [100]uint32) (int, bool) {

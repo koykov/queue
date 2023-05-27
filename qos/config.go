@@ -3,6 +3,7 @@ package qos
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Algo represent QoS scheduling algorithm.
@@ -20,20 +21,17 @@ const (
 	Egress  = "egress"
 )
 const (
-	defaultEgressCapacity = uint64(64)
-	defaultEgressWorkers  = uint32(1)
+	defaultEgressCapacity      = uint64(64)
+	defaultEgressWorkers       = uint32(1)
+	defaultEgressIdleThreshold = uint32(1000)
+	defaultEgressIdleTimeout   = time.Millisecond
 )
 
 type Config struct {
 	// Chosen algorithm [PQ, RR, WRR].
 	Algo Algo
-	// Egress sub-queue capacity.
-	// If this param omit defaultEgressCapacity (64) will use instead.
-	EgressCapacity uint64
-	// Count of transit workers between sub-queues and egress sud-queue.
-	// If this param omit defaultEgressWorkers (1) will use instead.
-	// Use with caution!
-	EgressWorkers uint32
+	// Egress sub-queue and workers settings.
+	Egress EgressConfig
 	// Helper to determine priority of incoming items.
 	// Mandatory param.
 	Evaluator PriorityEvaluator
@@ -42,12 +40,28 @@ type Config struct {
 	Queues []Queue
 }
 
+type EgressConfig struct {
+	// Egress sub-queue capacity.
+	// If this param omit defaultEgressCapacity (64) will use instead.
+	Capacity uint64
+	// Count of transit workers between sub-queues and egress sud-queue.
+	// If this param omit defaultEgressWorkers (1) will use instead.
+	// Use with caution!
+	Workers uint32
+	// Limit of idle read attempts.
+	// If this param omit defaultEgressIdleThreshold (1000) will use instead.
+	IdleThreshold uint32
+	// Time to wait after IdleThreshold read attempts.
+	// If this param omit defaultEgressIdleTimeout (1ms) will use instead.
+	IdleTimeout time.Duration
+}
+
 // New makes new QoS config using given params.
 func New(algo Algo, eval PriorityEvaluator) *Config {
 	q := Config{
-		Algo:           algo,
-		EgressCapacity: defaultEgressCapacity,
-		Evaluator:      eval,
+		Algo:      algo,
+		Egress:    EgressConfig{Capacity: defaultEgressCapacity},
+		Evaluator: eval,
 	}
 	return &q
 }
@@ -63,12 +77,12 @@ func (q *Config) SetEvaluator(eval PriorityEvaluator) *Config {
 }
 
 func (q *Config) SetEgressCapacity(cap uint64) *Config {
-	q.EgressCapacity = cap
+	q.Egress.Capacity = cap
 	return q
 }
 
 func (q *Config) SetEgressWorkers(workers uint32) *Config {
-	q.EgressWorkers = workers
+	q.Egress.Workers = workers
 	return q
 }
 
@@ -88,11 +102,17 @@ func (q *Config) Validate() error {
 	if q.Evaluator == nil {
 		return ErrNoEvaluator
 	}
-	if q.EgressCapacity == 0 {
-		q.EgressCapacity = defaultEgressCapacity
+	if q.Egress.Capacity == 0 {
+		q.Egress.Capacity = defaultEgressCapacity
 	}
-	if q.EgressWorkers == 0 {
-		q.EgressWorkers = defaultEgressWorkers
+	if q.Egress.Workers == 0 {
+		q.Egress.Workers = defaultEgressWorkers
+	}
+	if q.Egress.IdleThreshold == 0 {
+		q.Egress.IdleThreshold = defaultEgressIdleThreshold
+	}
+	if q.Egress.IdleTimeout == 0 {
+		q.Egress.IdleTimeout = defaultEgressIdleTimeout
 	}
 	if len(q.Queues) == 0 {
 		return ErrNoQueues
@@ -120,7 +140,7 @@ func (q *Config) Validate() error {
 
 // SummingCapacity returns sum of capacities of all sub-queues (including egress).
 func (q *Config) SummingCapacity() (c uint64) {
-	c += q.EgressCapacity
+	c += q.Egress.Capacity
 	for i := 0; i < len(q.Queues); i++ {
 		c += q.Queues[i].Capacity
 	}
