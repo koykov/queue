@@ -166,6 +166,7 @@ func (e *pq) close(_ bool) error {
 	for e.size1(false) > 0 {
 	}
 	// Stop egress workers.
+	e.tryFreeEW()
 	e.cancel()
 	// Close sub-queues channels.
 	for i := 0; i < len(e.pool); i++ {

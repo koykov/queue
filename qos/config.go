@@ -86,6 +86,16 @@ func (q *Config) SetEgressWorkers(workers uint32) *Config {
 	return q
 }
 
+func (q *Config) SetEgressIdleThreshold(threshold uint32) *Config {
+	q.Egress.IdleThreshold = threshold
+	return q
+}
+
+func (q *Config) SetEgressIdleTimeout(timeout time.Duration) *Config {
+	q.Egress.IdleTimeout = timeout
+	return q
+}
+
 func (q *Config) AddQueue(subq Queue) *Config {
 	if len(subq.Name) == 0 {
 		subq.Name = strconv.Itoa(len(q.Queues))
