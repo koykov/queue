@@ -505,6 +505,10 @@ func (q *Queue) calibrate(force bool) {
 		if target = q.getWorkersUp() / 2; target == 0 {
 			target = 1
 		}
+		// Check SleepThreshold to improve target.
+		if st := int32(q.c().SleepThreshold); st > 0 && st < target {
+			target = st
+		}
 		for i := params.WorkersMax - 1; i >= params.WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {
 				q.workers[i].signal(sigSleep)

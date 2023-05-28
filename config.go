@@ -66,6 +66,9 @@ type Config struct {
 	// SleepFactor must be in range [0..0.999999].
 	// If this param omit defaultSleepFactor (0.5) will use instead.
 	SleepFactor float32
+	// Limit of workers could send to sleep at once.
+	// If this param omit the half of available workers will send to sleep at calibration.
+	SleepThreshold uint32
 	// How long slept worker will wait until stop.
 	// If this param omit defaultSleepInterval (5 seconds) will use instead.
 	SleepInterval time.Duration
