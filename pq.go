@@ -37,7 +37,7 @@ func (e *pq) init(config *Config) error {
 	e.ql = uint64(len(q.Queues))
 	e.rri = math.MaxUint64
 
-	// Priorities buffer calculation.
+	// Priorities tables calculation.
 	e.rebalancePT()
 
 	// Create channels.

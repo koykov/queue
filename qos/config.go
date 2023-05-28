@@ -13,9 +13,9 @@ const (
 	PQ  Algo = iota // Priority Queuing
 	RR              // Round-Robin
 	WRR             // Weighted Round-Robin
-	// DWRR                // Dynamic Weighted Round-Robin (todo)
-	// FQ                  // Fair Queuing (idea?)
-	// WFQ                 // Weighted Fair Queuing (idea?)
+	// DWRR             // Dynamic Weighted Round-Robin (todo)
+	// FQ               // Fair Queuing (idea?)
+	// WFQ              // Weighted Fair Queuing (idea?)
 
 	Ingress = "ingress"
 	Egress  = "egress"
