@@ -9,12 +9,13 @@ import (
 	"github.com/koykov/queue/qos"
 )
 
+// PQ (priority queuing) engine implementation.
 type pq struct {
-	pool    []chan item
-	egress  chan item
-	inprior [100]uint32
-	eprior  [100]uint32
-	conf    *Config
+	subq    []chan item // sub-queues list
+	egress  chan item   // egress sub-queue
+	inprior [100]uint32 // ingress priority table
+	eprior  [100]uint32 // egress priority table (only for weighted algorithms)
+	conf    *Config     // main config instance
 	cancel  context.CancelFunc
 
 	ew  int32         // active egress workers
@@ -37,16 +38,16 @@ func (e *pq) init(config *Config) error {
 	e.rri = math.MaxUint64
 
 	// Priorities buffer calculation.
-	e.rebalancePB()
+	e.rebalancePT()
 
 	// Create channels.
 	for i := 0; i < len(q.Queues); i++ {
-		e.pool = append(e.pool, make(chan item, q.Queues[i].Capacity))
+		e.subq = append(e.subq, make(chan item, q.Queues[i].Capacity))
 	}
 	e.egress = make(chan item, q.Egress.Capacity)
 	e.ewc = make(chan struct{}, q.Egress.Workers)
 
-	// Start scheduler.
+	// Start egress worker(-s).
 	var ctx context.Context
 	ctx, e.cancel = context.WithCancel(context.Background())
 	for i := uint32(0); i < q.Egress.Workers; i++ {
@@ -69,6 +70,8 @@ func (e *pq) init(config *Config) error {
 					}
 					if !ok {
 						if atomic.AddInt64(&e.ia, 1) > int64(q.Egress.IdleThreshold) {
+							// Too many idle recv attempts from sub-queues detected.
+							// So lock EW till IdleTimeout reached or new item comes to the engine.
 							select {
 							case <-time.After(q.Egress.IdleTimeout):
 								//
@@ -85,6 +88,7 @@ func (e *pq) init(config *Config) error {
 }
 
 func (e *pq) enqueue(itm *item, block bool) bool {
+	// Evaluate priority.
 	pp := e.qos().Evaluator.Eval(itm.payload)
 	if pp == 0 {
 		pp = 1
@@ -92,28 +96,32 @@ func (e *pq) enqueue(itm *item, block bool) bool {
 	if pp > 100 {
 		pp = 100
 	}
+	// Mark item with sub-queue index.
 	itm.subqi = atomic.LoadUint32(&e.inprior[pp-1])
-	q := e.pool[itm.subqi]
+	q := e.subq[itm.subqi]
 	qn := e.qn(itm.subqi)
 	e.mw().SubqPut(qn)
 	if !block {
+		// Try to put item to the sub-queue in non-blocking mode.
 		select {
 		case q <- *itm:
-			e.tryFreeEW()
+			e.tryUnlockEW()
 			return true
 		default:
 			e.mw().SubqLeak(qn)
 			return false
 		}
 	} else {
+		// ... or in blocking mode.
 		q <- *itm
-		e.tryFreeEW()
+		e.tryUnlockEW()
 	}
 
 	return true
 }
 
-func (e *pq) tryFreeEW() {
+// Try to send unlock signal to all active EW.
+func (e *pq) tryUnlockEW() {
 	atomic.StoreInt64(&e.ia, 0)
 	if atomic.LoadInt64(&e.ia) > int64(e.qos().Egress.IdleThreshold) {
 		for i := 0; i < int(atomic.LoadInt32(&e.ew)); i++ {
@@ -136,7 +144,7 @@ func (e *pq) dequeue() (item, bool) {
 }
 
 func (e *pq) dequeueSQ(subqi uint32) (item, bool) {
-	itm, ok := <-e.pool[subqi]
+	itm, ok := <-e.subq[subqi]
 	if ok {
 		e.mw().SubqPull(e.qn(subqi))
 	}
@@ -147,9 +155,10 @@ func (e *pq) size() (sz int) {
 	return e.size1(true)
 }
 
+// Internal size evaluator.
 func (e *pq) size1(includingEgress bool) (sz int) {
-	for i := 0; i < len(e.pool); i++ {
-		sz += len(e.pool[i])
+	for i := 0; i < len(e.subq); i++ {
+		sz += len(e.subq[i])
 	}
 	if includingEgress {
 		sz += len(e.egress)
@@ -166,21 +175,23 @@ func (e *pq) close(_ bool) error {
 	for e.size1(false) > 0 {
 	}
 	// Stop egress workers.
-	e.tryFreeEW()
+	e.tryUnlockEW()
 	e.cancel()
 	// Close sub-queues channels.
-	for i := 0; i < len(e.pool); i++ {
-		close(e.pool[i])
+	for i := 0; i < len(e.subq); i++ {
+		close(e.subq[i])
 	}
-	// Spinlock waiting till all egress workers finished.
+	// Spinlock waiting till all egress workers finished; close control channel.
 	for atomic.LoadInt32(&e.ew) > 0 {
 	}
+	close(e.ewc)
 	// Close egress channel.
 	close(e.egress)
 	return nil
 }
 
-func (e *pq) rebalancePB() {
+// Priority tables (ingress and egress) rebalance.
+func (e *pq) rebalancePT() {
 	mxu32 := func(a, b uint32) uint32 {
 		if a > b {
 			return a
@@ -234,10 +245,12 @@ exit:
 	return
 }
 
+// PQ algorithm implementation: try to recv one single item from first available sub-queue (considering order) and send
+// it to egress.
 func (e *pq) shiftPQ() bool {
-	for i := 0; i < len(e.pool); i++ {
+	for i := 0; i < len(e.subq); i++ {
 		select {
-		case itm, ok := <-e.pool[i]:
+		case itm, ok := <-e.subq[i]:
 			if ok {
 				e.mw().SubqPull(e.qn(uint32(i)))
 				e.egress <- itm
@@ -251,10 +264,11 @@ func (e *pq) shiftPQ() bool {
 	return false
 }
 
+// RR algorithm implementation: try to recv one single item from sequential sub-queue and send it to egress.
 func (e *pq) shiftRR() bool {
-	qi := atomic.AddUint64(&e.rri, 1) % e.ql
+	qi := atomic.AddUint64(&e.rri, 1) % e.ql // sub-queue index trick.
 	select {
-	case itm, ok := <-e.pool[qi]:
+	case itm, ok := <-e.subq[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(uint32(qi)))
 			e.egress <- itm
@@ -267,11 +281,13 @@ func (e *pq) shiftRR() bool {
 	return false
 }
 
+// WRR/DWRR algorithm implementation: try to recv one single item from sequential sub-queue (considering weight) and
+// send it to egress.
 func (e *pq) shiftWRR() bool {
-	pi := atomic.AddUint64(&e.rri, 1) % 100
+	pi := atomic.AddUint64(&e.rri, 1) % 100 // PT weight trick.
 	qi := e.eprior[pi]
 	select {
-	case itm, ok := <-e.pool[qi]:
+	case itm, ok := <-e.subq[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(qi))
 			e.egress <- itm
