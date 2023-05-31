@@ -40,8 +40,8 @@ type Queue struct {
 
 	// Actual queue status.
 	status Status
-	// Internal items stream.
-	stream stream
+	// Internal engine.
+	engine engine
 
 	mux sync.Mutex
 	// Workers pool.
@@ -65,11 +65,9 @@ type Queue struct {
 type item struct {
 	payload any
 	retries uint32
-	dexpire int64 // Delayed execution expire time (Unix ns timestamp).
+	dexpire int64  // Delayed execution expire time (Unix ns timestamp).
+	subqi   uint32 // Sub-queue index.
 }
-
-// Items stream.
-type stream chan item
 
 // realtimeParams describes queue params for current time.
 type realtimeParams struct {
@@ -79,6 +77,9 @@ type realtimeParams struct {
 
 // New makes new queue instance and initialize it according config params.
 func New(config *Config) (*Queue, error) {
+	if config == nil {
+		return nil, ErrNoConfig
+	}
 	q := &Queue{
 		// Make a copy of config instance to protect queue from changing params after start.
 		config: config.Copy(),
@@ -90,9 +91,14 @@ func New(config *Config) (*Queue, error) {
 // Init queue.
 func (q *Queue) init() {
 	c := q.config
+	if c == nil {
+		q.Err = ErrNoConfig
+		q.status = StatusFail
+		return
+	}
 
 	// Check mandatory params.
-	if c.Capacity == 0 {
+	if c.Capacity == 0 && c.QoS == nil {
 		q.Err = ErrNoCapacity
 		q.status = StatusFail
 		return
@@ -161,8 +167,22 @@ func (q *Queue) init() {
 		c.FrontLeakAttempts = defaultFrontLeakAttempts
 	}
 
-	// Create the stream.
-	q.stream = make(stream, c.Capacity)
+	// Create the engine.
+	switch {
+	case c.QoS != nil:
+		if q.Err = c.QoS.Validate(); q.Err != nil {
+			q.status = StatusFail
+			return
+		}
+		c.Capacity = c.QoS.SummingCapacity()
+		q.engine = &pq{}
+	default:
+		q.engine = &fifo{}
+	}
+	if q.Err = q.engine.init(c); q.Err != nil {
+		q.status = StatusFail
+		return
+	}
 
 	// Check flags.
 	q.SetBit(flagBalanced, c.WorkersMin < c.WorkersMax || c.Schedule != nil)
@@ -243,23 +263,20 @@ func (q *Queue) renqueue(itm *item) (err error) {
 	q.mw().QueuePut()
 	if q.CheckBit(flagLeaky) {
 		// Put item to the stream in leaky mode.
-		select {
-		case q.stream <- *itm:
-			return
-		default:
+		if !q.engine.enqueue(itm, false) {
 			// Leak the item to DLQ.
 			if q.c().LeakDirection == LeakDirectionFront {
 				// Front direction, first need to extract item to leak from queue front.
 				for i := uint32(0); i < q.c().FrontLeakAttempts; i++ {
-					itmf := <-q.stream
+					itmf, _ := q.engine.dequeueSQ(itm.subqi)
 					if err = q.c().DLQ.Enqueue(itmf.payload); err != nil {
+						q.mw().QueueLost()
 						return
 					}
 					q.mw().QueueLeak(LeakDirectionFront)
-					select {
-					case q.stream <- *itm:
+					if q.engine.enqueue(itm, false) {
 						return
-					default:
+					} else {
 						continue
 					}
 				}
@@ -271,24 +288,24 @@ func (q *Queue) renqueue(itm *item) (err error) {
 		}
 	} else {
 		// Regular put (blocking mode).
-		q.stream <- *itm
+		q.engine.enqueue(itm, true)
 	}
 	return
 }
 
 // Size return actual size of the queue.
 func (q *Queue) Size() int {
-	return len(q.stream)
+	return q.engine.size()
 }
 
 // Capacity return max size of the queue.
 func (q *Queue) Capacity() int {
-	return cap(q.stream)
+	return q.engine.cap()
 }
 
 // Rate returns size to capacity ratio.
 func (q *Queue) Rate() float32 {
-	return float32(len(q.stream)) / float32(cap(q.stream))
+	return float32(q.engine.size()) / float32(q.engine.cap())
 }
 
 // Close gracefully stops the queue.
@@ -337,8 +354,8 @@ func (q *Queue) close(force bool) error {
 		}
 		q.mux.Unlock()
 		// Throw all remaining items to DLQ or trash.
-		for len(q.stream) > 0 {
-			itm := <-q.stream
+		for q.engine.size() > 0 {
+			itm, _ := q.engine.dequeue()
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
 				q.mw().QueueLeak(LeakDirectionFront)
@@ -349,9 +366,7 @@ func (q *Queue) close(force bool) error {
 	}
 	// Close the stream.
 	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	close(q.stream)
-
-	return nil
+	return q.engine.close(force)
 }
 
 // Internal calibration helper.
@@ -489,6 +504,10 @@ func (q *Queue) calibrate(force bool) {
 		// Workers put to sleep by chunks of workersUp / 2.
 		if target = q.getWorkersUp() / 2; target == 0 {
 			target = 1
+		}
+		// Check SleepThreshold to improve target.
+		if st := int32(q.c().SleepThreshold); st > 0 && st < target {
+			target = st
 		}
 		for i := params.WorkersMax - 1; i >= params.WorkersMin; i-- {
 			if q.workers[i].getStatus() == WorkerStatusActive {

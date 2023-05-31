@@ -2,6 +2,8 @@ package queue
 
 import (
 	"time"
+
+	"github.com/koykov/queue/qos"
 )
 
 const (
@@ -23,7 +25,7 @@ const (
 // Config describes queue properties and behavior.
 type Config struct {
 	// Queue capacity.
-	// Mandatory param.
+	// Mandatory param if QoS config omitted. QoS (if provided) summing capacity will overwrite this field.
 	Capacity uint64
 	// MaxRetries determines the maximum number of item processing retries.
 	// If MaxRetries is exceeded, the item will send to DLQ (if possible).
@@ -43,6 +45,11 @@ type Config struct {
 	// If this param omit defaultHeartbeatInterval (1 second) will use instead.
 	HeartbeatInterval time.Duration
 
+	// QoS scheduling settings.
+	// If this param omit FIFO queue will init by default.
+	// See qos/config.go
+	QoS *qos.Config
+
 	// Minimum workers number.
 	// Setting this param less than WorkersMax enables balancing feature.
 	WorkersMin uint32
@@ -59,6 +66,9 @@ type Config struct {
 	// SleepFactor must be in range [0..0.999999].
 	// If this param omit defaultSleepFactor (0.5) will use instead.
 	SleepFactor float32
+	// Limit of workers could send to sleep at once.
+	// If this param omit the half of available workers will send to sleep at calibration.
+	SleepThreshold uint32
 	// How long slept worker will wait until stop.
 	// If this param omit defaultSleepInterval (5 seconds) will use instead.
 	SleepInterval time.Duration
@@ -106,6 +116,9 @@ func (c *Config) Copy() *Config {
 	cpy := *c
 	if c.Schedule != nil {
 		cpy.Schedule = c.Schedule.Copy()
+	}
+	if c.QoS != nil {
+		cpy.QoS = c.QoS.Copy()
 	}
 	return &cpy
 }
