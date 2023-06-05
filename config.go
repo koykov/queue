@@ -86,6 +86,8 @@ type Config struct {
 	// Put failed items to DLQ.
 	// Better to use together with MaxRetries. After all processing attempts item will send to DLQ.
 	FailToDLQ bool
+	// Put denied by deadline items to DLQ.
+	DeadlineToDLQ bool
 	// LeakDirection indicates queue side to leak items (rear or front).
 	LeakDirection LeakDirection
 	// FrontLeakAttempts indicates how many times queue may be shifted to free up space for new rear item.
@@ -97,7 +99,13 @@ type Config struct {
 	// DelayInterval between item enqueue and processing.
 	// Settings this param enables delayed execution (DE) feature.
 	// DE guarantees that item will processed by worker after at least DelayInterval time.
+	// The opposite param to DeadlineInterval.
 	DelayInterval time.Duration
+	// DeadlineInterval to skip useless item processing.
+	// Setting this param enables Deadline-Aware Queue (DAQ) feature.
+	// DAQ guarantees that item will not process if time is over when worker takes it from queue.
+	// The opposite param to DelayInterval.
+	DeadlineInterval time.Duration
 
 	// Clock represents clock keeper.
 	// If this param omit nativeClock will use instead (see clock.go).

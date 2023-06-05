@@ -16,6 +16,7 @@ func (DummyMetrics) QueuePut()                                   {}
 func (DummyMetrics) QueuePull()                                  {}
 func (DummyMetrics) QueueRetry()                                 {}
 func (DummyMetrics) QueueLeak(_ LeakDirection)                   {}
+func (DummyMetrics) QueueDeadline()                              {}
 func (DummyMetrics) QueueLost()                                  {}
 func (DummyMetrics) SubqPut(_ string)                            {}
 func (DummyMetrics) SubqPull(_ string)                           {}
