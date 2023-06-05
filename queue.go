@@ -63,10 +63,11 @@ type Queue struct {
 
 // item is a wrapper for queue element with retries count.
 type item struct {
-	payload any
-	retries uint32
-	dexpire int64  // Delayed execution expire time (Unix ns timestamp).
-	subqi   uint32 // Sub-queue index.
+	payload  any
+	retries  uint32
+	delay    int64  // Delayed execution expire time (Unix ns timestamp).
+	deadline int64  // Deadline time (Unix ns timestamp).
+	subqi    uint32 // Sub-queue index.
 }
 
 // realtimeParams describes queue params for current time.
@@ -250,10 +251,33 @@ func (q *Queue) Enqueue(x any) error {
 			q.calibrate(true)
 		}
 	}
+	// Prepare item.
 	itm := item{payload: x}
 	if di := q.c().DelayInterval; di > 0 {
-		itm.dexpire = q.clk().Now().Add(di).UnixNano()
+		itm.delay = q.clk().Now().Add(di).UnixNano()
 	}
+	if di := q.c().DeadlineInterval; di > 0 {
+		itm.deadline = q.clk().Now().Add(di).UnixNano()
+	}
+	switch x.(type) {
+	case Job:
+		job := x.(Job)
+		if job.DelayInterval > 0 {
+			itm.delay = q.clk().Now().Add(job.DelayInterval).UnixNano()
+		}
+		if job.DeadlineInterval > 0 {
+			itm.deadline = q.clk().Now().Add(job.DeadlineInterval).UnixNano()
+		}
+	case *Job:
+		job := x.(*Job)
+		if job.DelayInterval > 0 {
+			itm.delay = q.clk().Now().Add(job.DelayInterval).UnixNano()
+		}
+		if job.DeadlineInterval > 0 {
+			itm.deadline = q.clk().Now().Add(job.DeadlineInterval).UnixNano()
+		}
+	}
+
 	return q.renqueue(&itm)
 }
 

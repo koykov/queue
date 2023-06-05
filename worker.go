@@ -82,13 +82,26 @@ func (w *worker) await(queue *Queue) {
 				w.stop(true)
 				return
 			}
+
+			// Check deadline.
+			if itm.deadline > 0 {
+				now := queue.clk().Now().UnixNano()
+				if now-itm.deadline >= 0 {
+					if queue.CheckBit(flagLeaky) && w.c().DeadlineToDLQ {
+						_ = w.c().DLQ.Enqueue(itm.payload)
+					}
+					w.mw().QueueDeadline()
+					continue
+				}
+			}
+
 			w.mw().QueuePull()
 
 			var intr bool
 			// Check delayed execution.
-			if itm.dexpire > 0 {
+			if itm.delay > 0 {
 				now := queue.clk().Now().UnixNano()
-				if delta := time.Duration(itm.dexpire - now); delta > 0 {
+				if delta := time.Duration(itm.delay - now); delta > 0 {
 					// Processing time has not yet arrived. So wait till delay ends.
 					select {
 					case <-time.After(delta):
@@ -116,11 +129,11 @@ func (w *worker) await(queue *Queue) {
 					// Try to retry processing if possible.
 					w.mw().QueueRetry()
 					itm.retries++
-					itm.dexpire = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
+					itm.delay = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
 					_ = queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
-					w.mw().QueueLeak(w.c().LeakDirection)
+					w.mw().QueueLeak(LeakDirectionFront)
 				}
 			}
 		case WorkerStatusIdle:
