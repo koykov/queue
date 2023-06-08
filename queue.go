@@ -81,22 +81,21 @@ func New(config *Config) (*Queue, error) {
 	if config == nil {
 		return nil, ErrNoConfig
 	}
-	q := &Queue{
-		// Make a copy of config instance to protect queue from changing params after start.
-		config: config.Copy(),
-	}
+	q := &Queue{config: config}
 	q.once.Do(q.init)
 	return q, q.Err
 }
 
 // Init queue.
 func (q *Queue) init() {
-	c := q.config
-	if c == nil {
+	if q.config == nil {
 		q.Err = ErrNoConfig
 		q.status = StatusFail
 		return
 	}
+	// Make a copy of config instance to protect queue from changing params after start.
+	q.config = q.config.Copy()
+	c := q.config
 
 	// Check mandatory params.
 	if c.Capacity == 0 && c.QoS == nil {
