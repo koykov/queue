@@ -58,7 +58,7 @@ type Queue struct {
 	// Enqueue lock counter.
 	enqlock int64
 
-	Err error
+	err error
 }
 
 // item is a wrapper for queue element with retries count.
@@ -83,13 +83,13 @@ func New(config *Config) (*Queue, error) {
 	}
 	q := &Queue{config: config}
 	q.once.Do(q.init)
-	return q, q.Err
+	return q, q.err
 }
 
 // Init queue.
 func (q *Queue) init() {
 	if q.config == nil {
-		q.Err = ErrNoConfig
+		q.err = ErrNoConfig
 		q.status = StatusFail
 		return
 	}
@@ -99,12 +99,12 @@ func (q *Queue) init() {
 
 	// Check mandatory params.
 	if c.Capacity == 0 && c.QoS == nil {
-		q.Err = ErrNoCapacity
+		q.err = ErrNoCapacity
 		q.status = StatusFail
 		return
 	}
 	if c.Worker == nil {
-		q.Err = ErrNoWorker
+		q.err = ErrNoWorker
 		q.status = StatusFail
 		return
 	}
@@ -129,7 +129,7 @@ func (q *Queue) init() {
 		c.WorkersMin = c.WorkersMax
 	}
 	if c.WorkersMax == 0 {
-		q.Err = ErrNoWorkers
+		q.err = ErrNoWorkers
 		q.status = StatusFail
 		return
 	}
@@ -170,7 +170,7 @@ func (q *Queue) init() {
 	// Create the engine.
 	switch {
 	case c.QoS != nil:
-		if q.Err = c.QoS.Validate(); q.Err != nil {
+		if q.err = c.QoS.Validate(); q.err != nil {
 			q.status = StatusFail
 			return
 		}
@@ -179,7 +179,7 @@ func (q *Queue) init() {
 	default:
 		q.engine = &fifo{}
 	}
-	if q.Err = q.engine.init(c); q.Err != nil {
+	if q.err = q.engine.init(c); q.err != nil {
 		q.status = StatusFail
 		return
 	}
@@ -659,6 +659,10 @@ func (q *Queue) String() string {
 	b, _ := json.Marshal(out)
 
 	return string(b)
+}
+
+func (q *Queue) Error() error {
+	return q.err
 }
 
 func (q *Queue) c() *Config {
