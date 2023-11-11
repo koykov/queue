@@ -127,6 +127,9 @@ func (q *Config) Validate() error {
 	if q.Egress.Capacity == 0 {
 		q.Egress.Capacity = defaultEgressCapacity
 	}
+	if q.Egress.Instances == 0 {
+		q.Egress.Instances = defaultEgressInstances
+	}
 	if q.Egress.Workers == 0 {
 		q.Egress.Workers = defaultEgressWorkers
 	}
