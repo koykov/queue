@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync/atomic"
 	"time"
@@ -12,7 +13,7 @@ import (
 // PQ (priority queuing) engine implementation.
 type pq struct {
 	subq    []chan item // sub-queues list
-	egress  chan item   // egress sub-queue
+	egress  egress      // egress sub-queues
 	inprior [100]uint32 // ingress priority table
 	eprior  [100]uint32 // egress priority table (only for weighted algorithms)
 	conf    *Config     // main config instance
@@ -44,7 +45,9 @@ func (e *pq) init(config *Config) error {
 	for i := 0; i < len(q.Queues); i++ {
 		e.subq = append(e.subq, make(chan item, q.Queues[i].Capacity))
 	}
-	e.egress = make(chan item, q.Egress.Capacity)
+	if err := e.egress.init(&config.QoS.Egress); err != nil {
+		return err
+	}
 	e.ewc = make(chan struct{}, q.Egress.Workers)
 
 	// Start egress worker(-s).
@@ -136,9 +139,9 @@ func (e *pq) tryUnlockEW() {
 }
 
 func (e *pq) dequeue() (item, bool) {
-	itm, ok := <-e.egress
+	itm, eqi, ok := e.egress.dequeue()
 	if ok {
-		e.mw().SubqPull(qos.Egress)
+		e.mw().SubqPull(e.egress.qn(eqi))
 	}
 	return itm, ok
 }
@@ -161,7 +164,7 @@ func (e *pq) size1(includingEgress bool) (sz int) {
 		sz += len(e.subq[i])
 	}
 	if includingEgress {
-		sz += len(e.egress)
+		sz += e.egress.size()
 	}
 	return
 }
@@ -185,9 +188,8 @@ func (e *pq) close(_ bool) error {
 	for atomic.LoadInt32(&e.ew) > 0 {
 	}
 	close(e.ewc)
-	// Close egress channel.
-	close(e.egress)
-	return nil
+	// Close egress channels.
+	return e.egress.close()
 }
 
 // Priority tables (ingress and egress) rebalance.
@@ -253,8 +255,8 @@ func (e *pq) shiftPQ() bool {
 		case itm, ok := <-e.subq[i]:
 			if ok {
 				e.mw().SubqPull(e.qn(uint32(i)))
-				e.egress <- itm
-				e.mw().SubqPut(qos.Egress)
+				eqi := e.egress.enqueue(itm)
+				e.mw().SubqPut(e.egress.qn(eqi))
 				return true
 			}
 		default:
@@ -271,8 +273,8 @@ func (e *pq) shiftRR() bool {
 	case itm, ok := <-e.subq[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(uint32(qi)))
-			e.egress <- itm
-			e.mw().SubqPut(qos.Egress)
+			eqi := e.egress.enqueue(itm)
+			e.mw().SubqPut(e.egress.qn(eqi))
 			return true
 		}
 	default:
@@ -290,8 +292,8 @@ func (e *pq) shiftWRR() bool {
 	case itm, ok := <-e.subq[qi]:
 		if ok {
 			e.mw().SubqPull(e.qn(qi))
-			e.egress <- itm
-			e.mw().SubqPut(qos.Egress)
+			eqi := e.egress.enqueue(itm)
+			e.mw().SubqPut(e.egress.qn(eqi))
 			return true
 		}
 	default:
@@ -324,4 +326,58 @@ func (e *pq) mw() MetricsWriter {
 
 func (e *pq) qn(i uint32) string {
 	return e.qos().Queues[i].Name
+}
+
+type egress struct {
+	pool    []chan item
+	name    []string
+	c, o, m uint64
+}
+
+func (e *egress) init(conf *qos.EgressConfig) error {
+	for i := uint32(0); i < conf.Instances; i++ {
+		e.pool = append(e.pool, make(chan item, conf.Capacity))
+		name := qos.Egress
+		if conf.Instances > 1 {
+			name = fmt.Sprintf("%s%d", qos.Egress, i)
+		}
+		e.name = append(e.name, name)
+	}
+	e.c, e.o, e.m = math.MaxUint64, math.MaxUint64, uint64(conf.Instances)
+	return nil
+}
+
+func (e *egress) enqueue(itm item) uint64 {
+	idx := atomic.AddUint64(&e.c, 1) % e.m
+	e.pool[idx] <- itm
+	return idx
+}
+
+func (e *egress) dequeue() (item, uint64, bool) {
+	for i := 0; i < len(e.pool); i++ {
+		idx := atomic.AddUint64(&e.o, 1) % e.m
+		itm, ok := <-e.pool[idx]
+		if ok {
+			return itm, idx, ok
+		}
+	}
+	return item{}, 0, false
+}
+
+func (e *egress) size() (sz int) {
+	for i := 0; i < len(e.pool); i++ {
+		sz += len(e.pool[i])
+	}
+	return
+}
+
+func (e *egress) close() error {
+	for i := 0; i < len(e.pool); i++ {
+		close(e.pool[i])
+	}
+	return nil
+}
+
+func (e *egress) qn(idx uint64) string {
+	return e.name[idx]
 }
