@@ -22,6 +22,7 @@ const (
 )
 const (
 	defaultEgressCapacity      = uint64(64)
+	defaultEgressInstances     = uint32(1)
 	defaultEgressWorkers       = uint32(1)
 	defaultEgressIdleThreshold = uint32(1000)
 	defaultEgressIdleTimeout   = time.Millisecond
@@ -44,6 +45,9 @@ type EgressConfig struct {
 	// Egress sub-queue capacity.
 	// If this param omit defaultEgressCapacity (64) will use instead.
 	Capacity uint64
+	// Amount of separate egress sub-queues.
+	// If this param omit defaultEgressInstances (1) will use instead.
+	Instances uint32
 	// Count of transit workers between sub-queues and egress sud-queue.
 	// If this param omit defaultEgressWorkers (1) will use instead.
 	// Use with caution!
@@ -59,8 +63,11 @@ type EgressConfig struct {
 // New makes new QoS config using given params.
 func New(algo Algo, eval PriorityEvaluator) *Config {
 	q := Config{
-		Algo:      algo,
-		Egress:    EgressConfig{Capacity: defaultEgressCapacity},
+		Algo: algo,
+		Egress: EgressConfig{
+			Capacity:  defaultEgressCapacity,
+			Instances: defaultEgressInstances,
+		},
 		Evaluator: eval,
 	}
 	return &q
@@ -78,6 +85,11 @@ func (q *Config) SetEvaluator(eval PriorityEvaluator) *Config {
 
 func (q *Config) SetEgressCapacity(cap uint64) *Config {
 	q.Egress.Capacity = cap
+	return q
+}
+
+func (q *Config) SetEgressInstances(inst uint32) *Config {
+	q.Egress.Instances = inst
 	return q
 }
 
@@ -114,6 +126,9 @@ func (q *Config) Validate() error {
 	}
 	if q.Egress.Capacity == 0 {
 		q.Egress.Capacity = defaultEgressCapacity
+	}
+	if q.Egress.Instances == 0 {
+		q.Egress.Instances = defaultEgressInstances
 	}
 	if q.Egress.Workers == 0 {
 		q.Egress.Workers = defaultEgressWorkers
