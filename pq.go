@@ -328,9 +328,10 @@ func (e *pq) qn(i uint32) string {
 	return e.qos().Queues[i].Name
 }
 
+// egress stream implementation
 type egress struct {
-	pool    []chan item
-	name    []string
+	pool    []chan item // pool of egress sub-queues
+	name    []string    // names of egress sub-queues
 	c, o, m uint64
 }
 
