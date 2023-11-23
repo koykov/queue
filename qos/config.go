@@ -156,8 +156,28 @@ func (q *Config) Validate() error {
 		if q1.Capacity == 0 {
 			return fmt.Errorf("QoS: queue #%s has no capacity", q1.Name)
 		}
-		if q1.Weight == 0 {
+
+		// Check weight config.
+		switch {
+		case q1.Weight == 0 && q1.IngressWeight == 0 && q1.EgressWeight == 0:
 			return fmt.Errorf("QoS: queue #%s is senseless due to no weight", q1.Name)
+		case q1.Weight != 0 && q1.IngressWeight != 0 && q1.EgressWeight != 0:
+			continue
+		case q1.Weight != 0 && q1.IngressWeight == 0 && q1.EgressWeight == 0:
+			q1.IngressWeight, q1.EgressWeight = q1.Weight, q1.Weight
+		case q1.Weight == 0 && q1.IngressWeight != 0 && q1.EgressWeight != 0:
+			continue
+		case q1.Weight == 0 && q1.IngressWeight == 0 && q1.EgressWeight != 0:
+			return fmt.Errorf("QoS: queue #%s has egress weight, but haven't ingress weight", q1.Name)
+		case q1.Weight == 0 && q1.IngressWeight != 0 && q1.EgressWeight == 0:
+			return fmt.Errorf("QoS: queue #%s has ingress weight, but haven't egress weight", q1.Name)
+		case q1.Weight != 0 && q1.IngressWeight == 0 && q1.EgressWeight != 0:
+			q1.IngressWeight = q1.Weight
+		case q1.Weight != 0 && q1.IngressWeight != 0 && q1.EgressWeight == 0:
+			q1.EgressWeight = q1.Weight
+		default:
+			return fmt.Errorf("QoS: queue #%s unconsidered weight config: weight %d, ingress %d, egress %d",
+				q1.Name, q1.Weight, q1.IngressWeight, q1.EgressWeight)
 		}
 	}
 	return nil
