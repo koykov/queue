@@ -210,11 +210,11 @@ func (e *pq) rebalancePT() {
 	// Build ingress priority table.
 	var tw uint64
 	for i := 0; i < len(q.Queues); i++ {
-		tw += atomic.LoadUint64(&q.Queues[i].Weight)
+		tw += atomic.LoadUint64(&q.Queues[i].IngressWeight)
 	}
 	var qi uint32
 	for i := 0; i < len(q.Queues); i++ {
-		rate := math.Ceil(float64(atomic.LoadUint64(&q.Queues[i].Weight)) / float64(tw) * 100)
+		rate := math.Ceil(float64(atomic.LoadUint64(&q.Queues[i].IngressWeight)) / float64(tw) * 100)
 		mxp := uint32(rate)
 		for j := qi; j < mxu32(qi+mxp, 100); j++ {
 			atomic.StoreUint32(&e.inprior[lim(j, 99)], uint32(i))
@@ -225,7 +225,7 @@ func (e *pq) rebalancePT() {
 	// Build and shuffle egress priority table.
 	var mnw uint64 = math.MaxUint64
 	for i := 0; i < len(q.Queues); i++ {
-		ew := atomic.LoadUint64(&q.Queues[i].Weight)
+		ew := atomic.LoadUint64(&q.Queues[i].EgressWeight)
 		tw += ew
 		if ew < mnw {
 			mnw = ew
@@ -233,7 +233,7 @@ func (e *pq) rebalancePT() {
 	}
 	for i := 0; i < 100; {
 		for j := 0; j < len(q.Queues); j++ {
-			rate := math.Round(float64(atomic.LoadUint64(&q.Queues[j].Weight)) / float64(mnw))
+			rate := math.Round(float64(atomic.LoadUint64(&q.Queues[j].EgressWeight)) / float64(mnw))
 			mxp := int(rate)
 			for k := 0; k < mxp; k++ {
 				atomic.StoreUint32(&e.eprior[i], uint32(j))
