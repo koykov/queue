@@ -176,6 +176,8 @@ func (q *Queue) init() {
 		}
 		c.Capacity = c.QoS.SummingCapacity()
 		q.engine = &pq{}
+	case c.Instances > 0:
+		q.engine = &pfifo{}
 	default:
 		q.engine = &fifo{}
 	}
