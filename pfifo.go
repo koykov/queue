@@ -49,21 +49,21 @@ func (e *pfifo) dequeueSQ(_ uint32) (item, bool) {
 }
 
 func (e *pfifo) size() (r int) {
-	for i := uint64(0); i < e.c; i++ {
+	for i := uint64(0); i < e.m; i++ {
 		r += len(e.pool[i])
 	}
 	return
 }
 
 func (e *pfifo) cap() (r int) {
-	for i := uint64(0); i < e.c; i++ {
-		r += len(e.pool[i])
+	for i := uint64(0); i < e.m; i++ {
+		r += cap(e.pool[i])
 	}
 	return
 }
 
 func (e *pfifo) close(_ bool) error {
-	for i := uint64(0); i < e.c; i++ {
+	for i := uint64(0); i < e.m; i++ {
 		close(e.pool[i])
 	}
 	return nil
