@@ -13,7 +13,7 @@ type pfifo struct {
 
 func (e *pfifo) init(config *Config) error {
 	var inst uint64
-	if inst = uint64(config.Instances); inst == 0 {
+	if inst = uint64(config.Streams); inst == 0 {
 		inst = 1
 	}
 	cap_ := config.Capacity / inst
