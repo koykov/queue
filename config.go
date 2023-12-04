@@ -27,6 +27,9 @@ type Config struct {
 	// Queue capacity.
 	// Mandatory param if QoS config omitted. QoS (if provided) summing capacity will overwrite this field.
 	Capacity uint64
+	// Streams allows to avoid mutex starvation by sharing items among Streams sub-channels instead of one singe
+	// channel.
+	Streams uint32
 	// MaxRetries determines the maximum number of item processing retries.
 	// If MaxRetries is exceeded, the item will send to DLQ (if possible).
 	// The initial attempt is not counted as a retry.

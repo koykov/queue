@@ -336,15 +336,15 @@ type egress struct {
 }
 
 func (e *egress) init(conf *qos.EgressConfig) error {
-	for i := uint32(0); i < conf.Instances; i++ {
+	for i := uint32(0); i < conf.Streams; i++ {
 		e.pool = append(e.pool, make(chan item, conf.Capacity))
 		name := qos.Egress
-		if conf.Instances > 1 {
+		if conf.Streams > 1 {
 			name = fmt.Sprintf("%s%d", qos.Egress, i)
 		}
 		e.name = append(e.name, name)
 	}
-	e.c, e.o, e.m = math.MaxUint64, math.MaxUint64, uint64(conf.Instances)
+	e.c, e.o, e.m = math.MaxUint64, math.MaxUint64, uint64(conf.Streams)
 	return nil
 }
 
