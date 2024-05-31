@@ -69,3 +69,16 @@ his goroutine will stop and status become _idle_. Sleeping state is required for
 Permanent goroutine running/stopping triggers `runtime.findrunnable` function. `SleepInterval` helps amortize that load. 
 
 Queue in balancing mode permanent balances workers count so that queue's rate is between `SleepFactor` and `WakeupFactor`.
+
+## Leaky queue
+
+Let's imagine a queue with so huge load, that even `WorkersMax` active can't process the items in time. The queue blocks
+all threads calling `Enqueue`, that may produces deadlock or reduce performance.
+
+For solving this problem was implemented `DLQ` (dead letter queue) - an auxiliary component, implements
+[Enqueuer](https://github.com/koykov/queue/blob/master/interface.go#L4) interface. Thus, you may forward leaked items to
+another queue or even make a chain of queues.
+
+Setting up param `DLQ` in config enables "leaky" feature of the queue. It based on
+["leaky bucket algorithm"](https://en.wikipedia.org/wiki/Leaky_bucket). It described in
+[Effective Go](https://golang.org/doc/effective_go#leaky_buffer) as "leaky buffer".
