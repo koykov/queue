@@ -50,9 +50,22 @@ active.
 
 All workers in range `WorkersMin` - `WorkersMax` may have three state:
 * _active_ - worker works and processes the items.
-* _sleep_ - worker is active, but does nothing due to queue hasn't enouht items to process. This state isn't permanent -
+* _sleep_ - worker is active, but does nothing due to queue hasn't enough items to process. This state isn't permanent -
 after waiting `SleepInterval` worker become idle.
 * _idle_ - worker (goroutine) stops and release resources. By need queue may make idle worker to active (run goroutine).
 
 Queue makes a decision to run new worker when [rate](https://github.com/koykov/queue/blob/master/interface.go#L12)
 became greather than `WakeupFactor` [0..0.999999].
+
+Eg: let's imagine queue with capacity 100 and `WakeupFactor` 0.5. If queue size will greater than 50, the queue will run
+new worker. If new worker wouldn't help to reduce size, queue will start another one till rate become less than
+`WakeupFactor` or `WorkersMax` limit reached.
+
+Let's imagine next that queue's load reduces and count of active workers became redundant. In that case queue will check
+`SleepFactor` [0..0.999999]. If queue's rate become less that `SleepFactor` one of active workers will force to sleep
+state. Next check another on will sleep, if condition (rate < `SleepFactor`) keep true - till rate will greater that
+`SleepFactor` or `WorkersMin` limit reaches. Sleeping worker will not sleep forever. After waiting `SleepInterval`
+his goroutine will stop and status become _idle_. Sleeping state is required for queues with often variadic load.
+Permanent goroutine running/stopping triggers `runtime.findrunnable` function. `SleepInterval` helps amortize that load. 
+
+Queue in balancing mode permanent balances workers count so that queue's rate is between `SleepFactor` and `WakeupFactor`.
