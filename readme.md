@@ -87,3 +87,6 @@ Package contains builtin [Dummy DLQ](https://github.com/koykov/queue/blob/master
 throws leaked items to the trash - you will lose some items, but will keep queue and application alive. However, there are
 [dlqdump](https://github.com/koykov/dlqdump) solution, that may dump leaked items to some storage (eg: disk). See package
 description for details.
+
+Final note of leaky queue: there is config flag `FailToDLQ`. If worker reports that item processing fails, the item will
+forward to `DLQ`, even if queue isn't leaked at the moment. It may be helpful for to make fallback method of item processing.
