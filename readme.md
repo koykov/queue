@@ -82,3 +82,8 @@ another queue or even make a chain of queues.
 Setting up param `DLQ` in config enables "leaky" feature of the queue. It based on
 ["leaky bucket algorithm"](https://en.wikipedia.org/wiki/Leaky_bucket). It described in
 [Effective Go](https://golang.org/doc/effective_go#leaky_buffer) as "leaky buffer".
+
+Package contains builtin [Dummy DLQ](https://github.com/koykov/queue/blob/master/dummy.go#L23) implementation. It just
+throws leaked items to the trash - you will lose some items, but will keep queue and application alive. However, there are
+[dlqdump](https://github.com/koykov/dlqdump) solution, that may dump leaked items to some storage (eg: disk). See package
+description for details.
