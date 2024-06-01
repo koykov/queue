@@ -142,3 +142,12 @@ this param enables DEQ feature and guarantees that item will process after at le
 
 This param is opposite to `DeadlineInterval`.
 
+## Deadline-aware queue (DAQ)
+
+In high-loaded queues the delivery of item to worker may take so much time that processing loss the meaning. The param
+`DeadlineInterval` may help in that case. If item acquires by worker, but `DeadlineInterval` (since enqueue) already
+passed, the item will not process.
+
+This params may work together with `DeadlineToDLQ` flag.
+
+This param is opposite to `DelayInterval`.
