@@ -134,3 +134,11 @@ This config will balance queue for periods:
 * from 1 to 4 active workers in the rest of time
 
 The reason of this feature development is balances simplification in hot periods.  
+
+## Delayed execution queue (DEQ)
+
+If queue must process item not immediately after enqueue, but after a period you may use param `DelayInterval`. Setting
+this param enables DEQ feature and guarantees that item will process after at least `DelayInterval` period.
+
+This param is opposite to `DeadlineInterval`.
+
