@@ -90,3 +90,11 @@ description for details.
 
 Final note of leaky queue: there is config flag `FailToDLQ`. If worker reports that item processing fails, the item will
 forward to `DLQ`, even if queue isn't leaked at the moment. It may be helpful for to make fallback method of item processing.
+
+## Retryable
+
+One attempt of item processing may be not enough. For example, queue must send HTTP request and sending in worker fails
+due to network problem and makes sense to try again. Param `MaxRetries` indicates how many repeated attempts worker can
+take. The first attempt of processing isn't a retry. All next attempts interpreted as retry.
+
+This param may work together with `FailToDLQ` param. Item will send to DLQ if all repeated attempts fails.
