@@ -98,3 +98,39 @@ due to network problem and makes sense to try again. Param `MaxRetries` indicate
 take. The first attempt of processing isn't a retry. All next attempts interpreted as retry.
 
 This param may work together with `FailToDLQ` param. Item will send to DLQ if all repeated attempts fails.
+
+## Scheduled queue
+
+Let's imagine we know periodicity of growing/reducing of queue load. For example, from 8:00 AM till 12:00 AM and from
+04:00 PM till 06:00 PM the load is moderate and 5 workers is enough. From 12:00 AM till 04:00 PM the load is maximal and
+minimum  10 workers must be active. And at night the load is lowes and one worker is enough. For that cases was implemented
+[scheduler](https://github.com/koykov/queue/blob/master/schedule.go) of queue params. It allows to set more optimal
+values of the following params for certain periods of time:
+* `WorkersMin`
+* `WorkersMax`
+* `WakeupFactor`
+* `SleepFactor`
+
+These params replaces corresponding config's value in the given period.
+
+For above example, the scheduler initialization look the following:
+```go
+sched := NewSchedule()
+sched.AddRange("08:00-12:00", ScheduleParams{WorkersMin: 5, WorkersMax: 10})
+sched.AddRange("12:00-16:00", ScheduleParams{WorkersMin: 10, WorkersMax: 20})
+sched.AddRange("16:00-18:00", ScheduleParams{WorkersMin: 5, WorkersMax: 10})
+config := Config{
+	...
+	WorkersMin: 1,
+	WorkersMax: 4,
+	Schedule: sched,
+	...
+}
+```
+This config will balance queue for periods:
+* from 5 to 10 active workers in period 8:00 AM - 12:00 AM
+* from 10 to 20 active workers in period 12:00 AM - 04:00 PM
+* from 5 to 10 active workers in period 04:00 PM - 06:00 PM
+* from 1 to 4 active workers in the rest of time
+
+The reason of this feature development is balances simplification in hot periods.  
