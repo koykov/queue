@@ -28,3 +28,16 @@ algorithms:
 * `WRR` (Weighted Round-Robin) - items forwards to egress from SQ according it weight.
 
 `DWRR` (Dynamic Weighted Round-Robin) isn't implemented but planned.
+
+### Output (egress) SQ
+
+`egress` is a special SQ, where puts items taken from other SQs. There is param `EgressConfig` to set up it:
+* `Capacity` - capacity, mandatory.
+* `Streams` - shards of egress.
+* `Workers` - count of workers that will take items from SQs and put to egress.
+* `IdleThreshold` - how many idle reads available from empty SQs before worker blocks for `IdleTimeout`.
+* `IdleTimeout` - how long worker will block after `IdleThreshold` failed read attempts.
+
+Each egress worker works iteratively and reads one item per turn. From what SQ item will read dependents of prioritization
+algorithm (see param `Algo`). If there is no items to read, the iteration marked as "blank" (idle). After `IdleThreshold`
+blank reads worker will block for `IdleTimeout` period. But worker may unblock earlier, if item will enqueue.
