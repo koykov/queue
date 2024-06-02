@@ -198,3 +198,12 @@ scenarios of queue configs. The project has Docker-container, including `Grafana
 The project controls using HTTP requests, see [readme](https://github.com/koykov/demo/blob/master/queue/readme.md). 
 
 Typical sets of requests https://github.com/koykov/demo/tree/master/queue/request.
+
+## Links
+
+* https://en.wikipedia.org/wiki/Thread_pool
+* https://en.wikipedia.org/wiki/Leaky_bucket
+* https://golang.org/doc/effective_go#leaky_buffer
+* https://en.wikipedia.org/wiki/Dead_letter_queue
+* https://cloud.yandex.com/en/docs/message-queue/concepts/dlq
+* https://en.wikipedia.org/wiki/Quality_of_service
