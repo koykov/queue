@@ -183,3 +183,18 @@ well. You may write your own implementation of `MetricsWriter` for any required 
 synchronously processed by all "child" workers. You may, for example, build a chain of workers and finish it with
 `transit` worker.
 * [async_chain](https://github.com/koykov/queue/blob/master/worker/async_chain.go) also joins workers into one, but item will process asynchronously by "child" workers. 
+
+## Logging
+
+`queue` may report about internal events (calibration(balancing), closing, worker signals, ...) for debugging purposes.
+There is param `Logger` in config that must implement [`Logger`](https://github.com/koykov/queue/blob/master/logger.go)
+interface.
+
+## Showcase
+
+During development the biggest problem was a covering with tests. Due to impossibility of unit-testing the 
+[demo showcase](https://github.com/koykov/demo/tree/master/queue) project was developed, where were tested different
+scenarios of queue configs. The project has Docker-container, including `Grafana`, `Prometheus` and `queue daemon`.
+The project controls using HTTP requests, see [readme](https://github.com/koykov/demo/blob/master/queue/readme.md). 
+
+Typical sets of requests https://github.com/koykov/demo/tree/master/queue/request.
