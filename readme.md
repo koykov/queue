@@ -162,3 +162,15 @@ will lose maindness. In computer networks this problem was solved a long time ag
 
 The config has param `QoS` with type [`qos.Config`](qos/config.go). Setting up this param makes the queue prioretizable.
 See configuration details in [readme](qos/readme.md).
+
+## Metrics coverage
+
+Config has a param calls `MetricsWriter` that must implement [`MetricsWriter`](https://github.com/koykov/queue/blob/master/metrics.go#L7)
+interface.
+
+There are two implementation of the interface:
+* [`LogMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/log.go)
+* [`PrometheusMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/prometheus.go)
+
+The first is useless in production and may be need only for debugging purposes. Second one is totally tested and works
+well. You may write your own implementation of `MetricsWriter` for any required TSDB.
