@@ -174,3 +174,12 @@ There are two implementation of the interface:
 
 The first is useless in production and may be need only for debugging purposes. Second one is totally tested and works
 well. You may write your own implementation of `MetricsWriter` for any required TSDB.
+
+## Builtin workers
+
+`queue` has three helper workers:
+* [transit](https://github.com/koykov/queue/blob/master/worker/transit.go) just forwards the item to another queue.
+* [chain](https://github.com/koykov/queue/blob/master/worker/chain.go) joins several workers to one. The item will
+synchronously processed by all "child" workers. You may, for example, build a chain of workers and finish it with
+`transit` worker.
+* [async_chain](https://github.com/koykov/queue/blob/master/worker/async_chain.go) also joins workers into one, but item will process asynchronously by "child" workers. 
