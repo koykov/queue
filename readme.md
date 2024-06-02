@@ -151,3 +151,14 @@ passed, the item will not process.
 This params may work together with `DeadlineToDLQ` flag.
 
 This param is opposite to `DelayInterval`.
+
+## Prioretizable queue
+
+By default, queue works as FIFO stack. It works good while queue gets items with the same priority. But if queue receives
+items of both types - priority and non-priority sooner or later will happen the case when queue will have non-priority
+elements in the head and priority in the tail. Priority items may become outdated when they are turn and their processing
+will lose maindness. In computer networks this problem was solved a long time ago and solution calls
+[Quality of Service (QoS)](https://en.wikipedia.org/wiki/Quality_of_service).
+
+The config has param `QoS` with type [`qos.Config`](qos/config.go). Setting up this param makes the queue prioretizable.
+See configuration details in [readme](qos/readme.md).
