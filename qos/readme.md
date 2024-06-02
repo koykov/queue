@@ -41,3 +41,12 @@ algorithms:
 Each egress worker works iteratively and reads one item per turn. From what SQ item will read dependents of prioritization
 algorithm (see param `Algo`). If there is no items to read, the iteration marked as "blank" (idle). After `IdleThreshold`
 blank reads worker will block for `IdleTimeout` period. But worker may unblock earlier, if item will enqueue.
+
+### Priority evaluator (PE)
+
+Param `Evaluator` implements `PriorityEvaluator` interface and helps to "evaluate" priority of item in percent. In
+dependency of priority item will put to one of SQs (according weight).
+
+There are to builtin evaluators:
+* [`Weighed`](https://github.com/koykov/queue/blob/master/priority/weighted.go) - for items given or calculated weight.
+* [`Random`](https://github.com/koykov/queue/blob/master/priority/random.go) - testing PE with random values.
