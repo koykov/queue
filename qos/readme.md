@@ -17,3 +17,14 @@ conf := Config{
 
 > Note, setting up this params will overwrite `Capacity` params with total sum of all SQs.
 
+## Settings
+
+### Prioritization algorithm
+
+Param `Algo` in QoS config defines from what SQ the next item will take to forward to egress. Currently, supports three
+algorithms:
+* `PQ` (Priority Queuing) - the SQ that is specified first will process first, the second SQ after first become empty, ...
+* `RR` (Round-Robin) - items will take from every SQs in rotation every turn.
+* `WRR` (Weighted Round-Robin) - items forwards to egress from SQ according it weight.
+
+`DWRR` (Dynamic Weighted Round-Robin) isn't implemented but planned.
