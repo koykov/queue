@@ -50,3 +50,36 @@ dependency of priority item will put to one of SQs (according weight).
 There are to builtin evaluators:
 * [`Weighed`](https://github.com/koykov/queue/blob/master/priority/weighted.go) - for items given or calculated weight.
 * [`Random`](https://github.com/koykov/queue/blob/master/priority/random.go) - testing PE with random values.
+
+### Sub-queue (SQ)
+
+SQs sets using param `Queues`. SQs count isn't limited. Each SQ three params:
+* `Name` - human-readable name. May be omitted, then index in `Queues` array will use as name. Names `ingress`/`egress` isn't available to use.
+* `Capacity` - SQ capacity, mandatory.
+* `Weight` - SQ weight (if `IngressWeight`/`EgressWeight` omitted, i.e. `Weight` may be split for in and out items).
+
+Let's see the example:
+```go
+qos.Config{
+	Algo: qos.WRR,
+	...
+	Queues: []qos.Queue{
+		{Name: "high", Capacity: 100, Weight: 250},   // ingress 25%; egress 1.6 (~2)	
+		{Name: "medium", Capacity: 200, Weight: 600}, // ingress 60%; egress 4
+		{Name: "low", Capacity: 700, Weight: 150},    // ingress 15%; egress 1
+	}
+}
+```
+How QoS will work:
+* for incoming items `Evaluator` will evaluate the priority (percent)
+* according percent item will put to the corresponding SQ:
+    * [0..25] - to SQ "high"
+    * (25..60] - to SQ "medium"
+    * (60..100] - to SQ "low"
+* egress worker within the next 7 iterations will forward to egress (according weight proportions):
+    * 2 items from SQ "high"
+    * 4 items from SQ "medium"
+    * 1 item from SQ "low"
+
+It works only for weighed algorithm. `PQ`/`RR` algorithms will consider weight only for making decision to which SQ item
+should put.
