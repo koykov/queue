@@ -206,11 +206,12 @@ config := Config{
 интерфейса, он достаточно простой.
 
 На данный момент написаны две реализации этого интерфейса:
-[`LogMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/log.go) и
-[`PrometheusMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/prometheus.go). Первый бессмысленно
-использовать в продакшн условиях и он создавался для упрощения отладки при разработке. А вот Prometheus версия полностью
-рабочая и протестированная. Аналогичным образом, можно написать реализацию `MetricsWriter`-а для иной TSDB, которую вы
-используете.
+* [`log.MetricsWriter`](metrics/log)
+* [`prometheus.MetricsWriter`](metrics/prometheus)
+
+Первый бессмысленно использовать в продакшн условиях и он создавался для упрощения отладки при разработке. А вот Prometheus
+версия полностью рабочая и протестированная. Аналогичным образом, можно написать реализацию `MetricsWriter`-а для иной
+TSDB, которую вы используете.
 
 ## Коробочные воркеры
 

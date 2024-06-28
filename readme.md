@@ -169,8 +169,8 @@ Config has a param calls `MetricsWriter` that must implement [`MetricsWriter`](h
 interface.
 
 There are two implementation of the interface:
-* [`LogMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/log.go)
-* [`PrometheusMetrics`](https://github.com/koykov/metrics_writers/blob/master/queue/prometheus.go)
+* [`log.MetricsWriter`](metrics/log)
+* [`prometheus.MetricsWriter`](metrics/prometheus)
 
 The first is useless in production and may be need only for debugging purposes. Second one is totally tested and works
 well. You may write your own implementation of `MetricsWriter` for any required TSDB.
