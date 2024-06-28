@@ -17,7 +17,7 @@ type MetricsWriter interface {
 	// WorkerWait registers how many worker waits due to delayed execution.
 	WorkerWait(idx uint32, dur time.Duration)
 	// WorkerStop registers when sleeping worker stops.
-	WorkerStop(idx uint32, force bool, status WorkerStatus)
+	WorkerStop(idx uint32, force bool, status string)
 	// QueuePut registers income of new item to the queue.
 	QueuePut()
 	// QueuePull registers outgoing of item from the queue.
@@ -26,7 +26,7 @@ type MetricsWriter interface {
 	QueueRetry()
 	// QueueLeak registers item's leak from the full queue.
 	// Param dir indicates leak direction and may be "rear" or "front".
-	QueueLeak(dir LeakDirection)
+	QueueLeak(direction string)
 	// QueueDeadline registers amount of skipped processing of items due to deadline.
 	QueueDeadline()
 	// QueueLost registers lost items missed queue and DLQ.

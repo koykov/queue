@@ -298,7 +298,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 						q.mw().QueueLost()
 						return
 					}
-					q.mw().QueueLeak(LeakDirectionFront)
+					q.mw().QueueLeak(LeakDirectionFront.String())
 					if q.engine.enqueue(itm, false) {
 						return
 					} else {
@@ -309,7 +309,7 @@ func (q *Queue) renqueue(itm *item) (err error) {
 			}
 			// Rear direction, just leak item.
 			err = q.c().DLQ.Enqueue(itm.payload)
-			q.mw().QueueLeak(LeakDirectionRear)
+			q.mw().QueueLeak(LeakDirectionRear.String())
 		}
 	} else {
 		// Regular put (blocking mode).
@@ -383,7 +383,7 @@ func (q *Queue) close(force bool) error {
 			itm, _ := q.engine.dequeue()
 			if q.CheckBit(flagLeaky) {
 				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.mw().QueueLeak(LeakDirectionFront)
+				q.mw().QueueLeak(LeakDirectionFront.String())
 			} else {
 				q.mw().QueueLost()
 			}
