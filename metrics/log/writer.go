@@ -3,8 +3,6 @@ package log
 import (
 	"log"
 	"time"
-
-	q "github.com/koykov/queue"
 )
 
 // MetricsWriter is Log implementation of queue.MetricsWriter.
@@ -41,9 +39,9 @@ func (w MetricsWriter) WorkerWait(idx uint32, delay time.Duration) {
 	log.Printf("queue %s: worker %d waits %s\n", w.name, idx, delay)
 }
 
-func (w MetricsWriter) WorkerStop(idx uint32, force bool, status q.WorkerStatus) {
+func (w MetricsWriter) WorkerStop(idx uint32, force bool, status string) {
 	if force {
-		log.Printf("queue %s: worker %d caught force stop signal (current status %d)\n", w.name, idx, status)
+		log.Printf("queue %s: worker %d caught force stop signal (current status %s)\n", w.name, idx, status)
 	} else {
 		log.Printf("queue %s: worker %d caught stop signal\n", w.name, idx)
 	}
@@ -61,12 +59,8 @@ func (w MetricsWriter) QueueRetry() {
 	log.Printf("queue %s: retry item processing due to fail\n", w.name)
 }
 
-func (w MetricsWriter) QueueLeak(dir q.LeakDirection) {
-	dirs := "rear"
-	if dir == q.LeakDirectionFront {
-		dirs = "front"
-	}
-	log.Printf("queue %s: queue leak from %s\n", w.name, dirs)
+func (w MetricsWriter) QueueLeak(direction string) {
+	log.Printf("queue %s: queue leak from %s\n", w.name, direction)
 }
 
 func (w MetricsWriter) QueueDeadline() {
@@ -77,14 +71,14 @@ func (w MetricsWriter) QueueLost() {
 	log.Printf("queue %s: queue lost\n", w.name)
 }
 
-func (w MetricsWriter) SubQueuePut(subq string) {
+func (w MetricsWriter) SubqPut(subq string) {
 	log.Printf("queue %s/%s: new item come to the queue\n", w.name, subq)
 }
 
-func (w MetricsWriter) SubQueuePull(subq string) {
+func (w MetricsWriter) SubqPull(subq string) {
 	log.Printf("queue %s/%s: item leave the queue\n", w.name, subq)
 }
 
-func (w MetricsWriter) SubQueueDrop(subq string) {
-	log.Printf("queue %s/%s: queue drop item\n", w.name, subq)
+func (w MetricsWriter) SubqLeak(subq string) {
+	log.Printf("queue %s/%s: queue leak item\n", w.name, subq)
 }

@@ -3,7 +3,6 @@ package prometheus
 import (
 	"time"
 
-	q "github.com/koykov/queue"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -141,13 +140,13 @@ func (w MetricsWriter) WorkerWait(_ uint32, delay time.Duration) {
 	promWorkerWait.WithLabelValues(w.name).Observe(float64(delay.Nanoseconds() / int64(w.prec)))
 }
 
-func (w MetricsWriter) WorkerStop(_ uint32, force bool, status q.WorkerStatus) {
+func (w MetricsWriter) WorkerStop(_ uint32, force bool, status string) {
 	promWorkerIdle.WithLabelValues(w.name).Inc()
 	if force {
 		switch status {
-		case q.WorkerStatusActive:
+		case "active":
 			promWorkerActive.WithLabelValues(w.name).Add(-1)
-		case q.WorkerStatusSleep:
+		case "sleep":
 			promWorkerSleep.WithLabelValues(w.name).Add(-1)
 		}
 	} else {
@@ -169,12 +168,8 @@ func (w MetricsWriter) QueueRetry() {
 	promQueueRetry.WithLabelValues(w.name).Inc()
 }
 
-func (w MetricsWriter) QueueLeak(dir q.LeakDirection) {
-	dirs := "rear"
-	if dir == q.LeakDirectionFront {
-		dirs = "front"
-	}
-	promQueueLeak.WithLabelValues(w.name, dirs).Inc()
+func (w MetricsWriter) QueueLeak(direction string) {
+	promQueueLeak.WithLabelValues(w.name, direction).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 

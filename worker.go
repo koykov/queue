@@ -6,13 +6,28 @@ import (
 )
 
 type WorkerStatus uint32
-type signal uint32
 
 const (
 	WorkerStatusIdle WorkerStatus = iota
 	WorkerStatusActive
 	WorkerStatusSleep
+)
 
+func (s WorkerStatus) String() string {
+	switch s {
+	case WorkerStatusIdle:
+		return "idle"
+	case WorkerStatusActive:
+		return "active"
+	case WorkerStatusSleep:
+		return "sleep"
+	}
+	return "unknown"
+}
+
+type signal uint32
+
+const (
 	sigInit signal = iota
 	sigSleep
 	sigWakeup
@@ -133,7 +148,7 @@ func (w *worker) await(queue *Queue) {
 					_ = queue.renqueue(&itm)
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
-					w.mw().QueueLeak(LeakDirectionFront)
+					w.mw().QueueLeak(LeakDirectionFront.String())
 				}
 			}
 		case WorkerStatusIdle:
@@ -180,7 +195,7 @@ func (w *worker) stop(force bool) {
 		}
 		w.l().Printf(msg, w.idx)
 	}
-	w.mw().WorkerStop(w.idx, force, w.getStatus())
+	w.mw().WorkerStop(w.idx, force, w.getStatus().String())
 	w.setStatus(WorkerStatusIdle)
 	w.notifyCtl()
 }
