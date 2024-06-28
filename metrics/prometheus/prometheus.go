@@ -1,4 +1,4 @@
-package queue
+package prometheus
 
 import (
 	"time"
@@ -7,8 +7,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// PrometheusMetrics is a Prometheus implementation of queue.MetricsWriter.
-type PrometheusMetrics struct {
+// MetricsWriter is a Prometheus implementation of queue.MetricsWriter.
+type MetricsWriter struct {
 	name string
 	prec time.Duration
 }
@@ -97,108 +97,108 @@ func init() {
 		promSubqSize, promSubqIn, promSubqOut, promSubqLeak)
 }
 
-func NewPrometheusMetrics(name string) *PrometheusMetrics {
+func NewPrometheusMetrics(name string) *MetricsWriter {
 	return NewPrometheusMetricsWP(name, time.Nanosecond)
 }
 
-func NewPrometheusMetricsWP(name string, precision time.Duration) *PrometheusMetrics {
+func NewPrometheusMetricsWP(name string, precision time.Duration) *MetricsWriter {
 	if precision == 0 {
 		precision = time.Nanosecond
 	}
-	m := &PrometheusMetrics{
+	m := &MetricsWriter{
 		name: name,
 		prec: precision,
 	}
 	return m
 }
 
-func (m PrometheusMetrics) WorkerSetup(active, sleep, stop uint) {
-	promWorkerActive.DeleteLabelValues(m.name)
-	promWorkerSleep.DeleteLabelValues(m.name)
-	promWorkerIdle.DeleteLabelValues(m.name)
+func (w MetricsWriter) WorkerSetup(active, sleep, stop uint) {
+	promWorkerActive.DeleteLabelValues(w.name)
+	promWorkerSleep.DeleteLabelValues(w.name)
+	promWorkerIdle.DeleteLabelValues(w.name)
 
-	promWorkerActive.WithLabelValues(m.name).Add(float64(active))
-	promWorkerSleep.WithLabelValues(m.name).Add(float64(sleep))
-	promWorkerIdle.WithLabelValues(m.name).Add(float64(stop))
+	promWorkerActive.WithLabelValues(w.name).Add(float64(active))
+	promWorkerSleep.WithLabelValues(w.name).Add(float64(sleep))
+	promWorkerIdle.WithLabelValues(w.name).Add(float64(stop))
 }
 
-func (m PrometheusMetrics) WorkerInit(_ uint32) {
-	promWorkerActive.WithLabelValues(m.name).Inc()
-	promWorkerIdle.WithLabelValues(m.name).Add(-1)
+func (w MetricsWriter) WorkerInit(_ uint32) {
+	promWorkerActive.WithLabelValues(w.name).Inc()
+	promWorkerIdle.WithLabelValues(w.name).Add(-1)
 }
 
-func (m PrometheusMetrics) WorkerSleep(_ uint32) {
-	promWorkerSleep.WithLabelValues(m.name).Inc()
-	promWorkerActive.WithLabelValues(m.name).Add(-1)
+func (w MetricsWriter) WorkerSleep(_ uint32) {
+	promWorkerSleep.WithLabelValues(w.name).Inc()
+	promWorkerActive.WithLabelValues(w.name).Add(-1)
 }
 
-func (m PrometheusMetrics) WorkerWakeup(_ uint32) {
-	promWorkerActive.WithLabelValues(m.name).Inc()
-	promWorkerSleep.WithLabelValues(m.name).Add(-1)
+func (w MetricsWriter) WorkerWakeup(_ uint32) {
+	promWorkerActive.WithLabelValues(w.name).Inc()
+	promWorkerSleep.WithLabelValues(w.name).Add(-1)
 }
 
-func (m PrometheusMetrics) WorkerWait(_ uint32, delay time.Duration) {
-	promWorkerWait.WithLabelValues(m.name).Observe(float64(delay.Nanoseconds() / int64(m.prec)))
+func (w MetricsWriter) WorkerWait(_ uint32, delay time.Duration) {
+	promWorkerWait.WithLabelValues(w.name).Observe(float64(delay.Nanoseconds() / int64(w.prec)))
 }
 
-func (m PrometheusMetrics) WorkerStop(_ uint32, force bool, status q.WorkerStatus) {
-	promWorkerIdle.WithLabelValues(m.name).Inc()
+func (w MetricsWriter) WorkerStop(_ uint32, force bool, status q.WorkerStatus) {
+	promWorkerIdle.WithLabelValues(w.name).Inc()
 	if force {
 		switch status {
 		case q.WorkerStatusActive:
-			promWorkerActive.WithLabelValues(m.name).Add(-1)
+			promWorkerActive.WithLabelValues(w.name).Add(-1)
 		case q.WorkerStatusSleep:
-			promWorkerSleep.WithLabelValues(m.name).Add(-1)
+			promWorkerSleep.WithLabelValues(w.name).Add(-1)
 		}
 	} else {
-		promWorkerSleep.WithLabelValues(m.name).Add(-1)
+		promWorkerSleep.WithLabelValues(w.name).Add(-1)
 	}
 }
 
-func (m PrometheusMetrics) QueuePut() {
-	promQueueIn.WithLabelValues(m.name).Inc()
-	promQueueSize.WithLabelValues(m.name).Inc()
+func (w MetricsWriter) QueuePut() {
+	promQueueIn.WithLabelValues(w.name).Inc()
+	promQueueSize.WithLabelValues(w.name).Inc()
 }
 
-func (m PrometheusMetrics) QueuePull() {
-	promQueueOut.WithLabelValues(m.name).Inc()
-	promQueueSize.WithLabelValues(m.name).Dec()
+func (w MetricsWriter) QueuePull() {
+	promQueueOut.WithLabelValues(w.name).Inc()
+	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (m PrometheusMetrics) QueueRetry() {
-	promQueueRetry.WithLabelValues(m.name).Inc()
+func (w MetricsWriter) QueueRetry() {
+	promQueueRetry.WithLabelValues(w.name).Inc()
 }
 
-func (m PrometheusMetrics) QueueLeak(dir q.LeakDirection) {
+func (w MetricsWriter) QueueLeak(dir q.LeakDirection) {
 	dirs := "rear"
 	if dir == q.LeakDirectionFront {
 		dirs = "front"
 	}
-	promQueueLeak.WithLabelValues(m.name, dirs).Inc()
-	promQueueSize.WithLabelValues(m.name).Dec()
+	promQueueLeak.WithLabelValues(w.name, dirs).Inc()
+	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (m PrometheusMetrics) QueueDeadline() {
-	promQueueDeadline.WithLabelValues(m.name).Inc()
-	promQueueSize.WithLabelValues(m.name).Dec()
+func (w MetricsWriter) QueueDeadline() {
+	promQueueDeadline.WithLabelValues(w.name).Inc()
+	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (m PrometheusMetrics) QueueLost() {
-	promQueueLost.WithLabelValues(m.name).Inc()
-	promQueueSize.WithLabelValues(m.name).Dec()
+func (w MetricsWriter) QueueLost() {
+	promQueueLost.WithLabelValues(w.name).Inc()
+	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (m PrometheusMetrics) SubqPut(subq string) {
-	promSubqIn.WithLabelValues(m.name, subq).Inc()
-	promSubqSize.WithLabelValues(m.name, subq).Inc()
+func (w MetricsWriter) SubqPut(subq string) {
+	promSubqIn.WithLabelValues(w.name, subq).Inc()
+	promSubqSize.WithLabelValues(w.name, subq).Inc()
 }
 
-func (m PrometheusMetrics) SubqPull(subq string) {
-	promSubqOut.WithLabelValues(m.name, subq).Inc()
-	promSubqSize.WithLabelValues(m.name, subq).Dec()
+func (w MetricsWriter) SubqPull(subq string) {
+	promSubqOut.WithLabelValues(w.name, subq).Inc()
+	promSubqSize.WithLabelValues(w.name, subq).Dec()
 }
 
-func (m PrometheusMetrics) SubqLeak(subq string) {
-	promSubqLeak.WithLabelValues(m.name, subq).Inc()
-	promSubqSize.WithLabelValues(m.name, subq).Dec()
+func (w MetricsWriter) SubqLeak(subq string) {
+	promSubqLeak.WithLabelValues(w.name, subq).Inc()
+	promSubqSize.WithLabelValues(w.name, subq).Dec()
 }
