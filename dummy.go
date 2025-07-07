@@ -31,3 +31,10 @@ func (DummyDLQ) Size() int           { return 0 }
 func (DummyDLQ) Capacity() int       { return 0 }
 func (DummyDLQ) Rate() float32       { return 0 }
 func (DummyDLQ) Close() error        { return nil }
+
+// DummyBackoff implements useless backoff. Interval returns without any changes.
+type DummyBackoff struct{}
+
+func (DummyBackoff) Next(interval time.Duration, _ int) time.Duration {
+	return interval
+}

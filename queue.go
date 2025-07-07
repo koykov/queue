@@ -118,6 +118,10 @@ func (q *Queue) init() {
 		c.MetricsWriter = DummyMetrics{}
 	}
 
+	if c.Backoff == nil {
+		c.Backoff = DummyBackoff{}
+	}
+
 	// Check workers numbers params.
 	if c.Workers > 0 && c.WorkersMin == 0 {
 		c.WorkersMin = c.Workers
