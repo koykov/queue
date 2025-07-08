@@ -14,7 +14,7 @@ func (DummyMetrics) WorkerWait(_ uint32, _ time.Duration)  {}
 func (DummyMetrics) WorkerStop(_ uint32, _ bool, _ string) {}
 func (DummyMetrics) QueuePut()                             {}
 func (DummyMetrics) QueuePull()                            {}
-func (DummyMetrics) QueueRetry()                           {}
+func (DummyMetrics) QueueRetry(_ time.Duration)            {}
 func (DummyMetrics) QueueLeak(_ string)                    {}
 func (DummyMetrics) QueueDeadline()                        {}
 func (DummyMetrics) QueueLost()                            {}

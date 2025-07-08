@@ -152,7 +152,7 @@ func (w *worker) await(queue *Queue) {
 						}
 					}
 					if !intr {
-						w.mw().QueueRetry()
+						w.mw().QueueRetry(delay)
 						itm.retries++
 						itm.delay = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
 						_ = queue.renqueue(&itm)

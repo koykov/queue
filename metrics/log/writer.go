@@ -55,7 +55,11 @@ func (w MetricsWriter) QueuePull() {
 	log.Printf("queue %s: item leave the queue\n", w.name)
 }
 
-func (w MetricsWriter) QueueRetry() {
+func (w MetricsWriter) QueueRetry(delay time.Duration) {
+	if delay > 0 {
+		log.Printf("queue %s: retry item processing due to fail with delay %s\n", w.name, delay)
+		return
+	}
 	log.Printf("queue %s: retry item processing due to fail\n", w.name)
 }
 
