@@ -98,8 +98,8 @@ func init() {
 
 	prometheus.MustRegister(promWorkerIdle, promWorkerActive, promWorkerSleep, promQueueSize,
 		promQueueIn, promQueueOut, promQueueRetry, promQueueLeak, promQueueLost, promQueueDeadline,
-		promWorkerWait,
-		promSubqSize, promSubqIn, promSubqOut, promSubqLeak, promRetryDelay)
+		promWorkerWait, promRetryDelay,
+		promSubqSize, promSubqIn, promSubqOut, promSubqLeak)
 }
 
 func NewPrometheusMetrics(name string) *MetricsWriter {
