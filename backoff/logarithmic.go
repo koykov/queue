@@ -7,7 +7,7 @@ import (
 
 // Logarithmic grows interval by formula `value*log(attempt+1)`
 // where `n` - number of attempts.
-// Example (for 10 second interval and k=3):
+// Example (for 10 second interval):
 // * 1st step - 7 second
 // * 2nd step - 11 second
 // * 3rd step - 14 second
