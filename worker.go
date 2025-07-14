@@ -144,9 +144,12 @@ func (w *worker) await(queue *Queue) {
 					// Try to retry processing if possible.
 					delay := w.c().Backoff.Next(w.c().RetryInterval, int(itm.retries))
 					if delay > 0 {
+						// Apply jitter logic to precalculated delay.
+						delay = w.c().Jitter.Apply(delay)
 						select {
 						case <-time.After(delay):
-							// Wait for interval calculated by Backoff.
+							// Wait for interval calculated by Backoff + Jitter.
+							break
 						case <-w.ctl:
 							intr = true
 						}

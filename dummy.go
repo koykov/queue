@@ -35,6 +35,9 @@ func (DummyDLQ) Close() error        { return nil }
 // DummyBackoff implements useless backoff. Interval returns without any changes.
 type DummyBackoff struct{}
 
-func (DummyBackoff) Next(interval time.Duration, _ int) time.Duration {
-	return interval
-}
+func (DummyBackoff) Next(interval time.Duration, _ int) time.Duration { return interval }
+
+// DummyJitter implements useless jitter. Interval returns without any changes.
+type DummyJitter struct{}
+
+func (DummyJitter) Apply(interval time.Duration) time.Duration { return interval }
