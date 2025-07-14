@@ -4,6 +4,7 @@ A `queue` is a wrapper over Go channels that has the following features:
 * balanced
 * leaky
 * retryable
+* backoff support
 * scheduled
 * delayed execution
 * deadline-aware
@@ -98,6 +99,26 @@ due to network problem and makes sense to try again. Param `MaxRetries` indicate
 take. The first attempt of processing isn't a retry. All next attempts interpreted as retry.
 
 This param may work together with `FailToDLQ` param. Item will send to DLQ if all repeated attempts fails.
+
+## Backoff
+
+Continuation of the previous chapter.
+
+If workers start throwing errors and mass retry is required, the queue may not be able to handle the load of both
+incoming elements and retryable elements. For this case, two parameters have been added:
+
+* `RetryInterval` - delay between processing attempts
+* `Backoff` - a special component that calculates the real delay time based on `RetryInterval`
+
+The following backoffs are available out of the box:
+
+* [Linear](backoff/linear.go) (1, 2, 3, 4, ...)
+* [Exponential](backoff/exponential.go) (1, 2, 4, 8, ...)
+* [Quadratic](backoff/quadratic.go) (1, 4, 9, 16, ...)
+* [Polynomial](backoff/polynomial.go) (1, 8, 27, ...)
+* [Logarithmic](backoff/logarithmic.go) (for a delay of 10: 7, 11, 14, ...)
+* [Fibonacci](backoff/fibonacci.go) (1, 1, 2, 3, 5, 8, ...)
+* [Random](backoff/random.go) (`RetryInterval/2 + random(RetryInterval)`)
 
 ## Scheduled queue
 
