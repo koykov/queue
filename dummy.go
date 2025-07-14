@@ -14,7 +14,7 @@ func (DummyMetrics) WorkerWait(_ uint32, _ time.Duration)  {}
 func (DummyMetrics) WorkerStop(_ uint32, _ bool, _ string) {}
 func (DummyMetrics) QueuePut()                             {}
 func (DummyMetrics) QueuePull()                            {}
-func (DummyMetrics) QueueRetry()                           {}
+func (DummyMetrics) QueueRetry(_ time.Duration)            {}
 func (DummyMetrics) QueueLeak(_ string)                    {}
 func (DummyMetrics) QueueDeadline()                        {}
 func (DummyMetrics) QueueLost()                            {}
@@ -31,3 +31,10 @@ func (DummyDLQ) Size() int           { return 0 }
 func (DummyDLQ) Capacity() int       { return 0 }
 func (DummyDLQ) Rate() float32       { return 0 }
 func (DummyDLQ) Close() error        { return nil }
+
+// DummyBackoff implements useless backoff. Interval returns without any changes.
+type DummyBackoff struct{}
+
+func (DummyBackoff) Next(interval time.Duration, _ int) time.Duration {
+	return interval
+}

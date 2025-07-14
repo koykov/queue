@@ -18,6 +18,7 @@ var (
 	promSubqIn, promSubqOut, promSubqLeak *prometheus.CounterVec
 
 	promWorkerWait *prometheus.HistogramVec
+	promRetryDelay *prometheus.HistogramVec
 
 	_ = NewPrometheusMetrics
 )
@@ -69,7 +70,12 @@ func init() {
 	buckets := append(prometheus.DefBuckets, []float64{15, 20, 30, 40, 50, 100, 150, 200, 250, 500, 1000, 1500, 2000, 3000, 5000}...)
 	promWorkerWait = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "queue_wait",
-		Help:    "How many worker waits due to delayed execution.",
+		Help:    "How long worker waits due to delayed execution.",
+		Buckets: buckets,
+	}, []string{"queue"})
+	promRetryDelay = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "queue_retry_delay",
+		Help:    "How long worker waits between retry attempts.",
 		Buckets: buckets,
 	}, []string{"queue"})
 
@@ -92,7 +98,7 @@ func init() {
 
 	prometheus.MustRegister(promWorkerIdle, promWorkerActive, promWorkerSleep, promQueueSize,
 		promQueueIn, promQueueOut, promQueueRetry, promQueueLeak, promQueueLost, promQueueDeadline,
-		promWorkerWait,
+		promWorkerWait, promRetryDelay,
 		promSubqSize, promSubqIn, promSubqOut, promSubqLeak)
 }
 
@@ -164,8 +170,9 @@ func (w MetricsWriter) QueuePull() {
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (w MetricsWriter) QueueRetry() {
+func (w MetricsWriter) QueueRetry(delay time.Duration) {
 	promQueueRetry.WithLabelValues(w.name).Inc()
+	promRetryDelay.WithLabelValues(w.name).Observe(float64(delay.Nanoseconds() / int64(w.prec)))
 }
 
 func (w MetricsWriter) QueueLeak(direction string) {

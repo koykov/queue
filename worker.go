@@ -142,10 +142,21 @@ func (w *worker) await(queue *Queue) {
 				// Processing failed.
 				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.
-					w.mw().QueueRetry()
-					itm.retries++
-					itm.delay = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
-					_ = queue.renqueue(&itm)
+					delay := w.c().Backoff.Next(w.c().RetryInterval, int(itm.retries))
+					if delay > 0 {
+						select {
+						case <-time.After(delay):
+							// Wait for interval calculated by Backoff.
+						case <-w.ctl:
+							intr = true
+						}
+					}
+					if !intr {
+						w.mw().QueueRetry(delay)
+						itm.retries++
+						itm.delay = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
+						_ = queue.renqueue(&itm)
+					}
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
 					w.mw().QueueLeak(LeakDirectionFront.String())

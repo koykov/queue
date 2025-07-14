@@ -34,6 +34,11 @@ type Config struct {
 	// If MaxRetries is exceeded, the item will send to DLQ (if possible).
 	// The initial attempt is not counted as a retry.
 	MaxRetries uint32
+	// Interval between retry attempts.
+	RetryInterval time.Duration
+	// Backoff calculates delay to next processing attempt.
+	// Works only with non-empty RetryInterval.
+	Backoff Backoff
 	// Simultaneous enqueue operation limit to start force calibration.
 	// Works only on balanced queues.
 	// If this param omit defaultForceCalibrationLimit (1000) will use instead.

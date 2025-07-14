@@ -23,7 +23,7 @@ type MetricsWriter interface {
 	// QueuePull registers outgoing of item from the queue.
 	QueuePull()
 	// QueueRetry registers total amount of retries.
-	QueueRetry()
+	QueueRetry(delay time.Duration)
 	// QueueLeak registers item's leak from the full queue.
 	// Param dir indicates leak direction and may be "rear" or "front".
 	QueueLeak(direction string)
