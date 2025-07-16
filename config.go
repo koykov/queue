@@ -39,6 +39,9 @@ type Config struct {
 	// Backoff calculates delay to next processing attempt.
 	// Works only with non-empty RetryInterval.
 	Backoff Backoff
+	// Jitter modifies delay to next processing attempt to avoid synchronizing of retryable items.
+	// Works only with non-empty RetryInterval.
+	Jitter Jitter
 	// Simultaneous enqueue operation limit to start force calibration.
 	// Works only on balanced queues.
 	// If this param omit defaultForceCalibrationLimit (1000) will use instead.

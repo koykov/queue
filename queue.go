@@ -121,6 +121,9 @@ func (q *Queue) init() {
 	if c.Backoff == nil {
 		c.Backoff = DummyBackoff{}
 	}
+	if c.Jitter == nil {
+		c.Jitter = DummyJitter{}
+	}
 
 	// Check workers numbers params.
 	if c.Workers > 0 && c.WorkersMin == 0 {
