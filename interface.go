@@ -25,6 +25,11 @@ type Worker interface {
 	Do(x any) error
 }
 
+// RNG describes random number generator.
+type RNG interface {
+	Int63n(n int64) int64
+}
+
 // Internal engine definition.
 type engine interface {
 	// Init engine using config.
