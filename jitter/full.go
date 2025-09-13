@@ -1,13 +1,23 @@
 package jitter
 
 import (
-	"math/rand"
+	"sync"
 	"time"
+
+	"github.com/koykov/queue/rng"
 )
 
-// Full returns random value of (0...interval].
-type Full struct{}
+// Full returns random value of [0...interval).
+type Full struct {
+	RNG  rng.Interface
+	once sync.Once
+}
 
-func (Full) Apply(interval time.Duration) time.Duration {
-	return time.Duration(rand.Int63n(int64(interval)))
+func (j *Full) Apply(interval time.Duration) time.Duration {
+	j.once.Do(func() {
+		if j.RNG == nil {
+			j.RNG = &rng.Pool{}
+		}
+	})
+	return time.Duration(j.RNG.Int63n(int64(interval)))
 }
