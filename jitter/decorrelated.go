@@ -38,13 +38,12 @@ func (j *Decorrelated) Apply(interval time.Duration) time.Duration {
 	defer j.p.Put(raw)
 
 	t := raw.(*dcjTuple)
-	cntr := t.rng.Int63n(3 * t.cntr)
-	if cntr < int64(j.Min) {
-		cntr = int64(j.Min)
+	t.cntr = t.rng.Int63n(3 * t.cntr)
+	if t.cntr < int64(j.Min) {
+		t.cntr = int64(j.Min)
 	}
-	if cntr > int64(j.Max) {
-		cntr = int64(j.Max)
+	if t.cntr > int64(j.Max) {
+		t.cntr = int64(j.Max)
 	}
-	t.cntr = cntr
-	return time.Duration(cntr)
+	return time.Duration(t.cntr)
 }
