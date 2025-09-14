@@ -16,6 +16,6 @@ type Polynomial struct {
 	K uint64
 }
 
-func (p Polynomial) Next(interval time.Duration, attempt int) time.Duration {
-	return interval * time.Duration(math.Pow(float64(attempt), float64(p.K)))
+func (b Polynomial) Next(interval time.Duration, attempt int) time.Duration {
+	return interval * time.Duration(math.Pow(float64(attempt), float64(b.K)))
 }

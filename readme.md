@@ -5,6 +5,7 @@ A `queue` is a wrapper over Go channels that has the following features:
 * leaky
 * retryable
 * backoff support
+* jitter support
 * scheduled
 * delayed execution
 * deadline-aware
@@ -119,6 +120,21 @@ The following backoffs are available out of the box:
 * [Logarithmic](backoff/logarithmic.go) (for a delay of 10: 7, 11, 14, ...)
 * [Fibonacci](backoff/fibonacci.go) (1, 1, 2, 3, 5, 8, ...)
 * [Random](backoff/random.go) (`RetryInterval/2 + random(RetryInterval)`)
+
+## Jitter support
+
+Continuation of the previous point.
+
+In case of mass retries, they can be synchronized in time and will go in waves, which will prevent the queue from processing them.
+Especially for this case, there is a `Jitter` parameter, which allows you to "smear" retries in time by adding a random delay to the retry time.
+
+The parameter only works with a non-zero `RetryInterval` and can work together with `Backoff`.
+
+The following jitters are available out of the box:
+
+* [Full](jitter/full.go) - returns a random value in the interval [0..RetryInterval).
+* [Half](jitter/half.go) - returns a random value in the interval [RetryInterval/2 .. RetryInterval].
+* [Decorrelated](jitter/decorrelated.go) - a random value between [Min..Max] taking into account the previous value.
 
 ## Scheduled queue
 
