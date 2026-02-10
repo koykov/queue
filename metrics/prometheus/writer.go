@@ -6,8 +6,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// MetricsWriter is a Prometheus implementation of queue.MetricsWriter.
-type MetricsWriter struct {
+type Writer interface {
+	WorkerSetup(active, sleep, stop uint)
+	WorkerInit(idx uint32)
+	WorkerSleep(idx uint32)
+	WorkerWakeup(idx uint32)
+	WorkerWait(idx uint32, dur time.Duration)
+	WorkerStop(idx uint32, force bool, status string)
+	QueuePut()
+	QueuePull()
+	QueueRetry(delay time.Duration)
+	QueueLeak(direction string)
+	QueueDeadline()
+	QueueLost()
+	SubqPut(subq string)
+	SubqPull(subq string)
+	SubqLeak(subq string)
+}
+
+// writer is a Prometheus implementation of queue.MetricsWriter.
+type writer struct {
 	name string
 	prec time.Duration
 }
@@ -19,8 +37,6 @@ var (
 
 	promWorkerWait *prometheus.HistogramVec
 	promRetryDelay *prometheus.HistogramVec
-
-	_ = NewPrometheusMetrics
 )
 
 func init() {
@@ -102,22 +118,31 @@ func init() {
 		promSubqSize, promSubqIn, promSubqOut, promSubqLeak)
 }
 
-func NewPrometheusMetrics(name string) *MetricsWriter {
-	return NewPrometheusMetricsWP(name, time.Nanosecond)
+// NewPrometheusMetrics is an old constructor.
+// Deprecated: use NewWriter instead.
+func NewPrometheusMetrics(name string) Writer {
+	return NewWriter(name)
 }
 
-func NewPrometheusMetricsWP(name string, precision time.Duration) *MetricsWriter {
-	if precision == 0 {
-		precision = time.Nanosecond
-	}
-	m := &MetricsWriter{
-		name: name,
-		prec: precision,
-	}
-	return m
+// NewPrometheusMetricsWP is an old constructor with precision.
+// Deprecated: use NewWriter instead.
+func NewPrometheusMetricsWP(name string, precision time.Duration) Writer {
+	return NewWriter(name, WithPrecision(precision))
 }
 
-func (w MetricsWriter) WorkerSetup(active, sleep, stop uint) {
+// NewWriter makes a new instance of metrics writer.
+func NewWriter(name string, options ...Option) Writer {
+	mw := &writer{name: name}
+	for _, fn := range options {
+		fn(mw)
+	}
+	if mw.prec == 0 {
+		mw.prec = time.Nanosecond
+	}
+	return mw
+}
+
+func (w writer) WorkerSetup(active, sleep, stop uint) {
 	promWorkerActive.DeleteLabelValues(w.name)
 	promWorkerSleep.DeleteLabelValues(w.name)
 	promWorkerIdle.DeleteLabelValues(w.name)
@@ -127,26 +152,26 @@ func (w MetricsWriter) WorkerSetup(active, sleep, stop uint) {
 	promWorkerIdle.WithLabelValues(w.name).Add(float64(stop))
 }
 
-func (w MetricsWriter) WorkerInit(_ uint32) {
+func (w writer) WorkerInit(_ uint32) {
 	promWorkerActive.WithLabelValues(w.name).Inc()
 	promWorkerIdle.WithLabelValues(w.name).Add(-1)
 }
 
-func (w MetricsWriter) WorkerSleep(_ uint32) {
+func (w writer) WorkerSleep(_ uint32) {
 	promWorkerSleep.WithLabelValues(w.name).Inc()
 	promWorkerActive.WithLabelValues(w.name).Add(-1)
 }
 
-func (w MetricsWriter) WorkerWakeup(_ uint32) {
+func (w writer) WorkerWakeup(_ uint32) {
 	promWorkerActive.WithLabelValues(w.name).Inc()
 	promWorkerSleep.WithLabelValues(w.name).Add(-1)
 }
 
-func (w MetricsWriter) WorkerWait(_ uint32, delay time.Duration) {
+func (w writer) WorkerWait(_ uint32, delay time.Duration) {
 	promWorkerWait.WithLabelValues(w.name).Observe(float64(delay.Nanoseconds() / int64(w.prec)))
 }
 
-func (w MetricsWriter) WorkerStop(_ uint32, force bool, status string) {
+func (w writer) WorkerStop(_ uint32, force bool, status string) {
 	promWorkerIdle.WithLabelValues(w.name).Inc()
 	if force {
 		switch status {
@@ -160,47 +185,47 @@ func (w MetricsWriter) WorkerStop(_ uint32, force bool, status string) {
 	}
 }
 
-func (w MetricsWriter) QueuePut() {
+func (w writer) QueuePut() {
 	promQueueIn.WithLabelValues(w.name).Inc()
 	promQueueSize.WithLabelValues(w.name).Inc()
 }
 
-func (w MetricsWriter) QueuePull() {
+func (w writer) QueuePull() {
 	promQueueOut.WithLabelValues(w.name).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (w MetricsWriter) QueueRetry(delay time.Duration) {
+func (w writer) QueueRetry(delay time.Duration) {
 	promQueueRetry.WithLabelValues(w.name).Inc()
 	promRetryDelay.WithLabelValues(w.name).Observe(float64(delay.Nanoseconds() / int64(w.prec)))
 }
 
-func (w MetricsWriter) QueueLeak(direction string) {
+func (w writer) QueueLeak(direction string) {
 	promQueueLeak.WithLabelValues(w.name, direction).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (w MetricsWriter) QueueDeadline() {
+func (w writer) QueueDeadline() {
 	promQueueDeadline.WithLabelValues(w.name).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (w MetricsWriter) QueueLost() {
+func (w writer) QueueLost() {
 	promQueueLost.WithLabelValues(w.name).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
 }
 
-func (w MetricsWriter) SubqPut(subq string) {
+func (w writer) SubqPut(subq string) {
 	promSubqIn.WithLabelValues(w.name, subq).Inc()
 	promSubqSize.WithLabelValues(w.name, subq).Inc()
 }
 
-func (w MetricsWriter) SubqPull(subq string) {
+func (w writer) SubqPull(subq string) {
 	promSubqOut.WithLabelValues(w.name, subq).Inc()
 	promSubqSize.WithLabelValues(w.name, subq).Dec()
 }
 
-func (w MetricsWriter) SubqLeak(subq string) {
+func (w writer) SubqLeak(subq string) {
 	promSubqLeak.WithLabelValues(w.name, subq).Inc()
 	promSubqSize.WithLabelValues(w.name, subq).Dec()
 }

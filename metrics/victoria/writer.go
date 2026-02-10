@@ -30,10 +30,9 @@ type writer struct {
 	prec time.Duration
 }
 
+// NewWriter makes a new instance of metrics writer.
 func NewWriter(name string, options ...Option) Writer {
-	mw := &writer{
-		name: name,
-	}
+	mw := &writer{name: name}
 	for _, fn := range options {
 		fn(mw)
 	}
