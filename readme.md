@@ -206,11 +206,10 @@ Config has a param calls `MetricsWriter` that must implement [`MetricsWriter`](h
 interface.
 
 There are two implementation of the interface:
-* [`log.MetricsWriter`](metrics/log)
-* [`prometheus.MetricsWriter`](metrics/prometheus)
+* [`prometheus.Writer`](metrics/prometheus)
+* [`victoria.Writer`](metrics/victoria)
 
-The first is useless in production and may be need only for debugging purposes. Second one is totally tested and works
-well. You may write your own implementation of `MetricsWriter` for any required TSDB.
+You may write your own implementation of `MetricsWriter` for any required TSDB.
 
 ## Builtin workers
 
