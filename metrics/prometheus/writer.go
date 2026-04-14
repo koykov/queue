@@ -19,6 +19,7 @@ type Writer interface {
 	QueueLeak(direction string)
 	QueueDeadline()
 	QueueLost()
+	QueueExec(spent time.Duration)
 	SubqPut(subq string)
 	SubqPull(subq string)
 	SubqLeak(subq string)
@@ -35,8 +36,7 @@ var (
 	promQueueIn, promQueueOut, promQueueRetry, promQueueLeak, promQueueDeadline, promQueueLost,
 	promSubqIn, promSubqOut, promSubqLeak *prometheus.CounterVec
 
-	promWorkerWait *prometheus.HistogramVec
-	promRetryDelay *prometheus.HistogramVec
+	promWorkerWait, promRetryDelay, promQueueExec *prometheus.HistogramVec
 )
 
 func init() {
@@ -94,6 +94,11 @@ func init() {
 		Help:    "How long worker waits between retry attempts.",
 		Buckets: buckets,
 	}, []string{"queue"})
+	promQueueExec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "queue_exec",
+		Help:    "How long queue executes the job.",
+		Buckets: buckets,
+	}, []string{"queue"})
 
 	promSubqSize = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "queue_subq_size",
@@ -114,7 +119,7 @@ func init() {
 
 	prometheus.MustRegister(promWorkerIdle, promWorkerActive, promWorkerSleep, promQueueSize,
 		promQueueIn, promQueueOut, promQueueRetry, promQueueLeak, promQueueLost, promQueueDeadline,
-		promWorkerWait, promRetryDelay,
+		promWorkerWait, promRetryDelay, promQueueExec,
 		promSubqSize, promSubqIn, promSubqOut, promSubqLeak)
 }
 
@@ -213,6 +218,10 @@ func (w writer) QueueDeadline() {
 func (w writer) QueueLost() {
 	promQueueLost.WithLabelValues(w.name).Inc()
 	promQueueSize.WithLabelValues(w.name).Dec()
+}
+
+func (w writer) QueueExec(spent time.Duration) {
+	promQueueExec.WithLabelValues(w.name).Observe(float64(spent.Nanoseconds() / int64(w.prec)))
 }
 
 func (w writer) SubqPut(subq string) {

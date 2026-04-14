@@ -31,6 +31,8 @@ type MetricsWriter interface {
 	QueueDeadline()
 	// QueueLost registers lost items missed queue and DLQ.
 	QueueLost()
+	// QueueExec registers how long queue executes a job.
+	QueueExec(spent time.Duration)
 
 	// SubqPut registers income of new item to the sub-queue.
 	SubqPut(subq string)
