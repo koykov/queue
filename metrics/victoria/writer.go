@@ -19,6 +19,7 @@ type Writer interface {
 	QueueLeak(direction string)
 	QueueDeadline()
 	QueueLost()
+	QueueExec(spent time.Duration)
 	SubqPut(subq string)
 	SubqPull(subq string)
 	SubqLeak(subq string)
@@ -109,6 +110,10 @@ func (w writer) QueueDeadline() {
 func (w writer) QueueLost() {
 	vmchain.Counter("queue_lost").WithLabel("queue", w.name).Inc()
 	vmchain.Gauge("queue_size", nil).WithLabel("queue", w.name).Dec()
+}
+
+func (w writer) QueueExec(spent time.Duration) {
+	vmchain.Histogram("queue_exec").WithLabel("queue", w.name).Update(float64(spent.Nanoseconds() / int64(w.prec)))
 }
 
 func (w writer) SubqPut(subq string) {

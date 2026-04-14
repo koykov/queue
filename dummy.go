@@ -18,6 +18,7 @@ func (DummyMetrics) QueueRetry(_ time.Duration)            {}
 func (DummyMetrics) QueueLeak(_ string)                    {}
 func (DummyMetrics) QueueDeadline()                        {}
 func (DummyMetrics) QueueLost()                            {}
+func (DummyMetrics) QueueExec(_ time.Duration)             {}
 func (DummyMetrics) SubqPut(_ string)                      {}
 func (DummyMetrics) SubqPull(_ string)                     {}
 func (DummyMetrics) SubqLeak(_ string)                     {}

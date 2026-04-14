@@ -138,7 +138,10 @@ func (w *worker) await(queue *Queue) {
 			}
 
 			// Forward itm to dequeuer.
-			if err := w.proc.Do(itm.payload); err != nil {
+			now := w.config.Clock.Now()
+			err := w.proc.Do(itm.payload)
+			w.mw().QueueExec(w.config.Clock.Now().Sub(now))
+			if err != nil {
 				// Processing failed.
 				if itm.retries < w.c().MaxRetries {
 					// Try to retry processing if possible.
