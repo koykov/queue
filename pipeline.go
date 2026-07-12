@@ -31,13 +31,11 @@ func (p *pipeline) Enqueue(x any) error {
 }
 
 func (p *pipeline) AddQueue(q *Queue) Pipeline {
-	p.buf = append(p.buf, pipeq{q: q})
-	return p
+	return p.add(q, false)
 }
 
 func (p *pipeline) AddAsyncQueue(q *Queue) Pipeline {
-	p.buf = append(p.buf, pipeq{q: q, async: true})
-	return p
+	return p.add(q, true)
 }
 
 func (p *pipeline) Close() error {
@@ -51,4 +49,21 @@ func (p *pipeline) Close() error {
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+func (p *pipeline) add(q *Queue, async bool) Pipeline {
+	if q == nil {
+		return p
+	}
+	q.donefn = p.donefn
+	n := len(p.buf)
+	if n > 0 {
+		p.buf[n-1].q.nextq = q
+	}
+	p.buf = append(p.buf, pipeq{q: q, async: async})
+	return p
+}
+
+func (p *pipeline) donefn(x any) {
+	// todo design and implement
 }
