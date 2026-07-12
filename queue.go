@@ -47,6 +47,10 @@ type Queue struct {
 	// Workers pool.
 	workers []*worker
 
+	nextq *Queue
+	// Item processing done hook.
+	donefn func(any)
+
 	once sync.Once
 
 	// Counter of active workers.
