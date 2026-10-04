@@ -110,8 +110,6 @@ func (w *worker) await(queue *Queue) {
 				}
 			}
 
-			w.mw().QueuePull()
-
 			var intr bool
 			// Check delayed execution.
 			if itm.delay > 0 {
@@ -158,6 +156,7 @@ func (w *worker) await(queue *Queue) {
 						}
 					}
 					if !intr {
+						w.mw().QueuePull() // Item came from queue for short time.
 						w.mw().QueueRetry(delay)
 						itm.retries++
 						itm.delay = 0 // Clear item timestamp for 2nd, 3rd, ... attempts.
@@ -166,8 +165,11 @@ func (w *worker) await(queue *Queue) {
 				} else if queue.CheckBit(flagLeaky) && w.c().FailToDLQ {
 					_ = w.c().DLQ.Enqueue(itm.payload)
 					w.mw().QueueLeak(LeakDirectionFront.String())
+					continue
 				}
 			}
+
+			w.mw().QueuePull()
 		case WorkerStatusIdle:
 			// Exit on idle status.
 			return
