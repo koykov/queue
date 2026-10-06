@@ -17,6 +17,9 @@ type Interface interface {
 	Rate() float32
 	// Close gracefully stops the queue.
 	Close() error
+	// ForceClose stops the queue and clear it.
+	// If queue supports leak feature, the items will send to DLQ or drop on the floor elsewhere.
+	ForceClose() error
 }
 
 // Worker describes queue worker interface.
