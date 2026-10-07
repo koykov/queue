@@ -47,6 +47,8 @@ type worker struct {
 	// * wakeup for slept workers
 	// * force close for active workers
 	ctl chan struct{}
+	// Channel to notify worker finishes his life.
+	eol chan struct{}
 	// Last signal timestamp.
 	lastTS int64
 	// Worker instance.
@@ -61,6 +63,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		ctl:    make(chan struct{}, 1),
+		eol:    make(chan struct{}),
 		proc:   config.Worker,
 		config: config,
 	}
@@ -84,6 +87,9 @@ func (w *worker) signal(sig signal) {
 
 // Waits to income item to process or control signal.
 func (w *worker) await(queue *Queue) {
+	defer func() {
+		close(w.eol) // Notify life is ended.
+	}()
 	for {
 		switch w.getStatus() {
 		case WorkerStatusSleep:
@@ -219,12 +225,17 @@ func (w *worker) stop(force bool) {
 	w.notifyCtl()
 }
 
+// Check if worker's life has ended.
+func (w *worker) done() <-chan struct{} {
+	return w.eol
+}
+
 // Check if ctl channel is empty and send signal (wakeup or force close).
 func (w *worker) notifyCtl() {
-	// Check ctl channel for previously undelivered signal.
-	if len(w.ctl) > 0 {
-		// Clear ctl channel to prevent locking.
-		_, _ = <-w.ctl
+	// Clear ctl channel for previously undelivered signal.
+	select {
+	case <-w.ctl:
+	default:
 	}
 
 	// Send stop signal to ctl channel.

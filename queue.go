@@ -382,6 +382,8 @@ func (q *Queue) close(force bool) error {
 				atomic.AddInt32(&q.workersUp, -1)
 			case WorkerStatusSleep:
 				q.workers[i].signal(sigForceStop)
+			default:
+				// noop
 			}
 		}
 		q.mux.Unlock()
@@ -397,12 +399,30 @@ func (q *Queue) close(force bool) error {
 		}
 	}
 	// Close the stream.
-	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	return q.engine.close(force)
+	err := q.engine.close(force)
+	// Apply closing strategy.
+	switch q.c().CloseStrategy {
+	case CloseStrategySynchronous:
+		for i := 0; i < int(q.wmax); i++ {
+			if q.workers[i].getStatus() == WorkerStatusIdle {
+				continue
+			}
+			<-q.workers[i].done()
+		}
+	case CloseStrategyAsynchronous:
+		fallthrough
+	default:
+		// Please note, this is not the end for regular close case. Workers continue works while queue has items.
+	}
+	return err
 }
 
 // Internal calibration helper.
 func (q *Queue) calibrate(force bool) {
+	if q.getStatus() == StatusClose {
+		return
+	}
+
 	// Check calibration lock before mutex lock.
 	if atomic.LoadUint32(&q.c9nlock) == 1 {
 		// Calibration is busy.
