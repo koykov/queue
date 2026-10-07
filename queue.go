@@ -345,25 +345,39 @@ func (q *Queue) Rate() float32 {
 // After receiving of close signal at least workersMin number of workers will work so long as queue has items.
 // Enqueue of new items to queue will forbid.
 func (q *Queue) Close() error {
-	return q.close(false)
+	if err := q.preclose("caught close signal"); err != nil {
+		return err
+	}
+	return q.postclose(false)
 }
 
 // ForceClose closes the queue and immediately stops all active and sleeping workers.
 //
 // Remaining items in the queue will throw to the trash.
 func (q *Queue) ForceClose() error {
-	return q.close(true)
+	if err := q.preclose("caught force close signal"); err != nil {
+		return err
+	}
+
+	// Throw all remaining items to DLQ or trash.
+	for q.engine.size() > 0 {
+		itm, _ := q.engine.dequeue()
+		if q.CheckBit(flagLeaky) {
+			_ = q.c().DLQ.Enqueue(itm.payload)
+			q.mw().QueueLeak(LeakDirectionFront.String())
+		} else {
+			q.mw().QueueLost()
+		}
+	}
+
+	return q.postclose(true)
 }
 
-func (q *Queue) close(force bool) error {
+func (q *Queue) preclose(msg string) error {
 	if q.getStatus() == StatusClose {
 		return ErrQueueClosed
 	}
 	if q.l() != nil {
-		msg := "caught close signal"
-		if force {
-			msg = "caught force close signal"
-		}
 		q.l().Printf(msg)
 	}
 	// Set the status.
@@ -371,33 +385,10 @@ func (q *Queue) close(force bool) error {
 	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
+	return nil
+}
 
-	if force {
-		// Immediately stop all active/sleeping workers.
-		q.mux.Lock()
-		for i := int(q.wmax - 1); i >= 0; i-- {
-			switch q.workers[i].getStatus() {
-			case WorkerStatusActive:
-				q.workers[i].signal(sigForceStop)
-				atomic.AddInt32(&q.workersUp, -1)
-			case WorkerStatusSleep:
-				q.workers[i].signal(sigForceStop)
-			default:
-				// noop
-			}
-		}
-		q.mux.Unlock()
-		// Throw all remaining items to DLQ or trash.
-		for q.engine.size() > 0 {
-			itm, _ := q.engine.dequeue()
-			if q.CheckBit(flagLeaky) {
-				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.mw().QueueLeak(LeakDirectionFront.String())
-			} else {
-				q.mw().QueueLost()
-			}
-		}
-	}
+func (q *Queue) postclose(force bool) error {
 	// Close the stream.
 	err := q.engine.close(force)
 	// Apply closing strategy.

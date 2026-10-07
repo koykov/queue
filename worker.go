@@ -63,7 +63,7 @@ func makeWorker(idx uint32, config *Config) *worker {
 		idx:    idx,
 		status: WorkerStatusIdle,
 		ctl:    make(chan struct{}, 1),
-		eol:    make(chan struct{}),
+		eol:    make(chan struct{}, 1),
 		proc:   config.Worker,
 		config: config,
 	}
