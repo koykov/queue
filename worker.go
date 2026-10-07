@@ -88,7 +88,11 @@ func (w *worker) signal(sig signal) {
 // Waits to income item to process or control signal.
 func (w *worker) await(queue *Queue) {
 	defer func() {
-		close(w.eol) // Notify life is ended.
+		// Notify life is ended.
+		select {
+		case w.eol <- struct{}{}:
+		default:
+		}
 	}()
 	for {
 		switch w.getStatus() {

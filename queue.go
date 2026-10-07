@@ -404,7 +404,13 @@ func (q *Queue) close(force bool) error {
 	switch q.c().CloseStrategy {
 	case CloseStrategySynchronous:
 		for i := 0; i < int(q.wmax); i++ {
-			if q.workers[i].getStatus() == WorkerStatusIdle {
+			switch q.workers[i].getStatus() {
+			case WorkerStatusActive:
+				q.workers[i].signal(sigForceStop)
+				atomic.AddInt32(&q.workersUp, -1)
+			case WorkerStatusSleep:
+				q.workers[i].signal(sigForceStop)
+			default:
 				continue
 			}
 			<-q.workers[i].done()
@@ -667,6 +673,8 @@ func (q *Queue) String() string {
 		out.Status = "throttle"
 	case StatusClose:
 		out.Status = "close"
+	default:
+		// noop
 	}
 	out.FullnessRate = q.Rate()
 
