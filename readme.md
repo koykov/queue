@@ -12,6 +12,7 @@ A `queue` is a wrapper over Go channels that has the following features:
 * prioretizable
 * covered with metrics
 * logged
+* configurable close strategy
 
 `queue` was developed in response to a need to create a lot of queues with the same structure and functionality. Create
 identical channels with only different workers, cover them with metrics was too boring and as result this solution was born.
@@ -225,6 +226,25 @@ synchronously processed by all "child" workers. You may, for example, build a ch
 `queue` may report about internal events (calibration(balancing), closing, worker signals, ...) for debugging purposes.
 There is param `Logger` in config that must implement [`Logger`](https://github.com/koykov/queue/blob/master/logger.go)
 interface.
+
+## Queue closing
+
+On queue shutdown it's important not to lose already accepted items. This behavior is controlled by the
+[`CloseStrategy`](https://github.com/koykov/queue/blob/master/config.go#L69) param, that takes one of two values:
+
+* `CloseStrategyAsynchronous` (default) - [`Close`](https://github.com/koykov/queue/blob/master/interface.go#L19) and
+[`ForceClose`](https://github.com/koykov/queue/blob/master/interface.go#L22) return immediately, and workers keep
+processing items in the background.
+* `CloseStrategySynchronous` - `Close` and `ForceClose` block until all running workers finish, i.e. until both the
+items left in the queue and the items already in processing are handled.
+
+`Close` stops accepting new items and lets workers finish the remaining queue items. `ForceClose` additionally clears
+the queue: the remaining items are forwarded to `DLQ` (if the leaky feature is enabled) or dropped. Items already taken
+by workers into processing aren't interrupted. `CloseStrategySynchronous` exists exactly not to lose such items on
+application shutdown: with it `ForceClose` waits until in-flight items are processed.
+
+Note that with synchronous close `Close` may wait as long as the slowest worker needs. In particular, items with delayed
+execution (see chapter "Delayed execution queue (DEQ)") aren't interrupted and will be processed after the delay elapses.
 
 ## Showcase
 
