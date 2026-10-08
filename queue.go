@@ -385,6 +385,9 @@ func (q *Queue) preclose(msg string) error {
 	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
+	// Wait till current calibration will finish.
+	for atomic.LoadUint32(&q.c9nlock) == 1 {
+	}
 	return nil
 }
 
@@ -392,24 +395,31 @@ func (q *Queue) postclose(force bool) error {
 	// Close the stream.
 	err := q.engine.close(force)
 	// Apply closing strategy.
-	switch q.c().CloseStrategy {
-	case CloseStrategySynchronous:
-		for i := 0; i < int(q.wmax); i++ {
-			switch q.workers[i].getStatus() {
-			case WorkerStatusActive:
+	syncRequired := q.c().CloseStrategy == CloseStrategySynchronous
+	// Handle the workers.
+	// Sleeping workers are blocked on ctl and hold no item, so they always need a signal: on graceful close
+	// they are woken up to observe the closed stream and exit, on force close they are stopped immediately.
+	// Active workers are stopped only on force close; on graceful close they drain the remaining items and
+	// exit on their own once the stream buffer is empty (stopping them here would abandon buffered items).
+	for i := 0; i < int(q.wmax); i++ {
+		switch q.workers[i].getStatus() {
+		case WorkerStatusSleep:
+			if force {
+				q.workers[i].signal(sigForceStop)
+			} else {
+				q.workers[i].signal(sigWakeup)
+			}
+		case WorkerStatusActive:
+			if force {
 				q.workers[i].signal(sigForceStop)
 				atomic.AddInt32(&q.workersUp, -1)
-			case WorkerStatusSleep:
-				q.workers[i].signal(sigForceStop)
-			default:
-				continue
 			}
+		default:
+			continue
+		}
+		if syncRequired {
 			<-q.workers[i].done()
 		}
-	case CloseStrategyAsynchronous:
-		fallthrough
-	default:
-		// Please note, this is not the end for regular close case. Workers continue works while queue has items.
 	}
 	return err
 }
@@ -485,6 +495,10 @@ func (q *Queue) calibrate(force bool) {
 			for i := uint32(0); i < q.wmax; i++ {
 				switch q.workers[i].getStatus() {
 				case WorkerStatusIdle:
+					// Do not restart a worker while its previous life is still finishing.
+					if atomic.LoadInt32(&q.workers[i].running) != 0 {
+						continue
+					}
 					q.workers[i].signal(sigInit)
 					go q.workers[i].await(q)
 				case WorkerStatusSleep:
@@ -535,6 +549,10 @@ func (q *Queue) calibrate(force bool) {
 				continue
 			}
 			if ws == WorkerStatusIdle {
+				// Do not restart a worker while its previous life is still finishing.
+				if atomic.LoadInt32(&q.workers[i].running) != 0 {
+					continue
+				}
 				q.workers[i].signal(sigInit)
 				go q.workers[i].await(q)
 			} else {

@@ -49,6 +49,8 @@ type worker struct {
 	ctl chan struct{}
 	// Channel to notify worker finishes his life.
 	eol chan struct{}
+	// Liveness flag: 1 while the worker goroutine is running (or about to start), 0 otherwise.
+	running int32
 	// Last signal timestamp.
 	lastTS int64
 	// Worker instance.
@@ -93,6 +95,9 @@ func (w *worker) await(queue *Queue) {
 		case w.eol <- struct{}{}:
 		default:
 		}
+		// The goroutine is no longer running. Only now it is safe to restart the worker: the end-of-life
+		// signal is already in place, so the next life's init() will drain it.
+		atomic.StoreInt32(&w.running, 0)
 	}()
 	for {
 		switch w.getStatus() {
@@ -192,6 +197,16 @@ func (w *worker) init() {
 	if w.l() != nil {
 		w.l().Printf("worker #%d init\n", w.idx)
 	}
+
+	// Drain previous value from EOF.
+	select {
+	case <-w.eol:
+	default:
+	}
+
+	// Mark the worker as alive before it becomes visible as Idle-restartable.
+	atomic.StoreInt32(&w.running, 1)
+
 	w.setStatus(WorkerStatusActive)
 	w.mw().WorkerInit(w.idx)
 }
