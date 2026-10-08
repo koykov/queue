@@ -345,25 +345,39 @@ func (q *Queue) Rate() float32 {
 // After receiving of close signal at least workersMin number of workers will work so long as queue has items.
 // Enqueue of new items to queue will forbid.
 func (q *Queue) Close() error {
-	return q.close(false)
+	if err := q.preclose("caught close signal"); err != nil {
+		return err
+	}
+	return q.postclose(false)
 }
 
 // ForceClose closes the queue and immediately stops all active and sleeping workers.
 //
 // Remaining items in the queue will throw to the trash.
 func (q *Queue) ForceClose() error {
-	return q.close(true)
+	if err := q.preclose("caught force close signal"); err != nil {
+		return err
+	}
+
+	// Throw all remaining items to DLQ or trash.
+	for q.engine.size() > 0 {
+		itm, _ := q.engine.dequeue()
+		if q.CheckBit(flagLeaky) {
+			_ = q.c().DLQ.Enqueue(itm.payload)
+			q.mw().QueueLeak(LeakDirectionFront.String())
+		} else {
+			q.mw().QueueLost()
+		}
+	}
+
+	return q.postclose(true)
 }
 
-func (q *Queue) close(force bool) error {
+func (q *Queue) preclose(msg string) error {
 	if q.getStatus() == StatusClose {
 		return ErrQueueClosed
 	}
 	if q.l() != nil {
-		msg := "caught close signal"
-		if force {
-			msg = "caught force close signal"
-		}
 		q.l().Printf(msg)
 	}
 	// Set the status.
@@ -371,38 +385,51 @@ func (q *Queue) close(force bool) error {
 	// Wait till all enqueue operations will finish.
 	for atomic.LoadInt64(&q.enqlock) > 0 {
 	}
+	// Wait till current calibration will finish.
+	for atomic.LoadUint32(&q.c9nlock) == 1 {
+	}
+	return nil
+}
 
-	if force {
-		// Immediately stop all active/sleeping workers.
-		q.mux.Lock()
-		for i := int(q.wmax - 1); i >= 0; i-- {
-			switch q.workers[i].getStatus() {
-			case WorkerStatusActive:
+func (q *Queue) postclose(force bool) error {
+	// Close the stream.
+	err := q.engine.close(force)
+	// Apply closing strategy.
+	syncRequired := q.c().CloseStrategy == CloseStrategySynchronous
+	// Handle the workers.
+	// Sleeping workers are blocked on ctl and hold no item, so they always need a signal: on graceful close
+	// they are woken up to observe the closed stream and exit, on force close they are stopped immediately.
+	// Active workers are stopped only on force close; on graceful close they drain the remaining items and
+	// exit on their own once the stream buffer is empty (stopping them here would abandon buffered items).
+	for i := 0; i < int(q.wmax); i++ {
+		switch q.workers[i].getStatus() {
+		case WorkerStatusSleep:
+			if force {
+				q.workers[i].signal(sigForceStop)
+			} else {
+				q.workers[i].signal(sigWakeup)
+			}
+		case WorkerStatusActive:
+			if force {
 				q.workers[i].signal(sigForceStop)
 				atomic.AddInt32(&q.workersUp, -1)
-			case WorkerStatusSleep:
-				q.workers[i].signal(sigForceStop)
 			}
+		default:
+			continue
 		}
-		q.mux.Unlock()
-		// Throw all remaining items to DLQ or trash.
-		for q.engine.size() > 0 {
-			itm, _ := q.engine.dequeue()
-			if q.CheckBit(flagLeaky) {
-				_ = q.c().DLQ.Enqueue(itm.payload)
-				q.mw().QueueLeak(LeakDirectionFront.String())
-			} else {
-				q.mw().QueueLost()
-			}
+		if syncRequired {
+			<-q.workers[i].done()
 		}
 	}
-	// Close the stream.
-	// Please note, this is not the end for regular close case. Workers continue works while queue has items.
-	return q.engine.close(force)
+	return err
 }
 
 // Internal calibration helper.
 func (q *Queue) calibrate(force bool) {
+	if q.getStatus() == StatusClose {
+		return
+	}
+
 	// Check calibration lock before mutex lock.
 	if atomic.LoadUint32(&q.c9nlock) == 1 {
 		// Calibration is busy.
@@ -468,6 +495,10 @@ func (q *Queue) calibrate(force bool) {
 			for i := uint32(0); i < q.wmax; i++ {
 				switch q.workers[i].getStatus() {
 				case WorkerStatusIdle:
+					// Do not restart a worker while its previous life is still finishing.
+					if atomic.LoadInt32(&q.workers[i].running) != 0 {
+						continue
+					}
 					q.workers[i].signal(sigInit)
 					go q.workers[i].await(q)
 				case WorkerStatusSleep:
@@ -518,6 +549,10 @@ func (q *Queue) calibrate(force bool) {
 				continue
 			}
 			if ws == WorkerStatusIdle {
+				// Do not restart a worker while its previous life is still finishing.
+				if atomic.LoadInt32(&q.workers[i].running) != 0 {
+					continue
+				}
 				q.workers[i].signal(sigInit)
 				go q.workers[i].await(q)
 			} else {
@@ -647,6 +682,8 @@ func (q *Queue) String() string {
 		out.Status = "throttle"
 	case StatusClose:
 		out.Status = "close"
+	default:
+		// noop
 	}
 	out.FullnessRate = q.Rate()
 

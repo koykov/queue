@@ -22,6 +22,13 @@ const (
 	defaultFactorLimit = .999999
 )
 
+type CloseStrategy uint8
+
+const (
+	CloseStrategyAsynchronous CloseStrategy = iota
+	CloseStrategySynchronous
+)
+
 // Config describes queue properties and behavior.
 type Config struct {
 	// Queue capacity.
@@ -55,6 +62,11 @@ type Config struct {
 	// result may be insufficient good.
 	// If this param omit defaultHeartbeatInterval (1 second) will use instead.
 	HeartbeatInterval time.Duration
+
+	// CloseStrategy describes what happens on queue close. There are two possible options:
+	// * CloseStrategyAsynchronous (default) workers finish their work asynchronously.
+	// * CloseStrategySynchronous workers finish their work synchronously and close method blocks till last worker finish.
+	CloseStrategy CloseStrategy
 
 	// QoS scheduling settings.
 	// If this param omit FIFO queue will init by default.
