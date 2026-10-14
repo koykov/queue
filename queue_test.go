@@ -474,6 +474,45 @@ func TestClose(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("force close idel balanced no hang", func(t *testing.T) {
+		// TestForceCloseIdleBalancedNoHang stress-reproduces the notifyCtl deadlock:
+		// a balanced queue with idle (Active, blocked in dequeue) workers is force
+		// closed repeatedly. ForceClose's postclose signals each worker while the
+		// worker itself stops on engine close; two concurrent notifyCtl calls on the
+		// same cap-1 ctl channel could deadlock, hanging ForceClose forever.
+		//
+		// It stays a standalone test rather than a TestClose case because the race only
+		// reproduces across many consecutive ForceClose calls on freshly built queues,
+		// while TestClose performs a single New+close and asserts drain semantics.
+
+		const iterations = 300
+		for i := 0; i < iterations; i++ {
+			cfg := &Config{
+				Capacity:      64,
+				WorkersMin:    16,
+				WorkersMax:    64,
+				CloseStrategy: CloseStrategySynchronous,
+				Worker:        &testWorker{},
+			}
+			q, err := New(cfg)
+			if err != nil {
+				t.Fatalf("iter %d: New: %v", i, err)
+			}
+			// Give workers a moment to become Active and block in dequeue.
+			time.Sleep(time.Millisecond)
+			done := make(chan error, 1)
+			go func() { done <- q.ForceClose() }()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("iter %d: ForceClose: %v", i, err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatalf("HANG: ForceClose did not return on iteration %d", i)
+			}
+		}
+	})
 }
 
 func TestCloseStopsSleepers(t *testing.T) {

@@ -257,8 +257,11 @@ func (w *worker) notifyCtl() {
 	default:
 	}
 
-	// Send stop signal to ctl channel.
-	w.ctl <- struct{}{}
+	// Send non-blocking stop signal to ctl channel.
+	select {
+	case w.ctl <- struct{}{}:
+	default:
+	}
 }
 
 // Set worker status.
