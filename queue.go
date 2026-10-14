@@ -402,26 +402,50 @@ func (q *Queue) postclose(force bool) error {
 	// Active workers are stopped only on force close; on graceful close they drain the remaining items and
 	// exit on their own once the stream buffer is empty (stopping them here would abandon buffered items).
 	for i := 0; i < int(q.wmax); i++ {
-		switch q.workers[i].getStatus() {
+		w := q.workers[i]
+		switch w.getStatus() {
 		case WorkerStatusSleep:
 			if force {
-				q.workers[i].signal(sigForceStop)
+				w.signal(sigForceStop)
 			} else {
-				q.workers[i].signal(sigWakeup)
+				w.signal(sigWakeup)
 			}
 		case WorkerStatusActive:
 			if force {
-				q.workers[i].signal(sigForceStop)
+				w.signal(sigForceStop)
 				atomic.AddInt32(&q.workersUp, -1)
 			}
 		default:
-			continue
+			// Skip idle (never started or EOL) workers.
+			if atomic.LoadInt32(&w.running) == 0 {
+				continue
+			}
 		}
 		if syncRequired {
-			<-q.workers[i].done()
+			<-w.done()
 		}
 	}
+	if syncRequired {
+		// Synchronous strategy guarantees all workers is done. So they can be destroyed.
+		q.destroy()
+	} else {
+		// Asynchronous strategy will wait all workers done and then destroy them.
+		go func() {
+			for i := 0; i < int(q.wmax); i++ {
+				if w := q.workers[i]; atomic.LoadInt32(&w.running) == 1 {
+					<-w.done()
+				}
+			}
+			q.destroy()
+		}()
+	}
 	return err
+}
+
+func (q *Queue) destroy() {
+	for _, w := range q.workers {
+		w.destroy()
+	}
 }
 
 // Internal calibration helper.
