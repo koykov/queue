@@ -249,6 +249,12 @@ func (w *worker) done() <-chan struct{} {
 	return w.eol
 }
 
+// destroy closes the worker control channels.
+func (w *worker) destroy() {
+	close(w.ctl)
+	close(w.eol)
+}
+
 // Check if ctl channel is empty and send signal (wakeup or force close).
 func (w *worker) notifyCtl() {
 	// Clear ctl channel for previously undelivered signal.

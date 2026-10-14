@@ -482,9 +482,8 @@ func TestClose(t *testing.T) {
 		// worker itself stops on engine close; two concurrent notifyCtl calls on the
 		// same cap-1 ctl channel could deadlock, hanging ForceClose forever.
 		//
-		// It stays a standalone test rather than a TestClose case because the race only
-		// reproduces across many consecutive ForceClose calls on freshly built queues,
-		// while TestClose performs a single New+close and asserts drain semantics.
+		// The race only reproduces across many consecutive ForceClose calls on freshly built
+		// queues, so this case repeats close in a loop rather than doing a single New+close.
 
 		const iterations = 300
 		for i := 0; i < iterations; i++ {
@@ -513,6 +512,80 @@ func TestClose(t *testing.T) {
 			}
 		}
 	})
+}
+
+// chanClosed reports whether ch is closed. It is safe to call for a closed or an
+// empty open channel: it never blocks, but it may consume a buffered token.
+func chanClosed(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		// The channel is either closed or had a buffered token; tell them apart.
+		select {
+		case <-ch:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
+// TestDestroyClosesWorkerChannels verifies that closing the queue tears down the
+// worker control channels (ctl/eol). With the synchronous strategy teardown is
+// complete once Close/ForceClose returns; with the asynchronous one it happens
+// in the background shortly after.
+func TestDestroyClosesWorkerChannels(t *testing.T) {
+	cases := []struct {
+		name  string
+		force bool
+		sync  bool
+	}{
+		{name: "graceful_sync", force: false, sync: true},
+		{name: "force_sync", force: true, sync: true},
+		{name: "graceful_async", force: false, sync: false},
+		{name: "force_async", force: true, sync: false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			q, err := New(&Config{
+				Capacity: 8,
+				Workers:  2,
+				Worker:   &testWorker{},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.sync {
+				q.config.CloseStrategy = CloseStrategySynchronous
+			}
+			if c.force {
+				_ = q.ForceClose()
+			} else {
+				_ = q.Close()
+			}
+			// Wait until every worker's channels are closed (immediate for the
+			// synchronous strategy, eventual for the asynchronous one).
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				closed := true
+				for _, w := range q.workers {
+					if !chanClosed(w.ctl) || !chanClosed(w.eol) {
+						closed = false
+						break
+					}
+				}
+				if closed {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("worker channels were not closed in time")
+				}
+				runtime.Gosched()
+				time.Sleep(time.Millisecond)
+			}
+		})
+	}
 }
 
 func TestCloseStopsSleepers(t *testing.T) {
@@ -547,6 +620,10 @@ func TestCloseStopsSleepers(t *testing.T) {
 			for i := 1; i <= 3; i++ {
 				w := q.workers[i]
 				w.setStatus(WorkerStatusSleep)
+				// Mark the worker alive, exactly as signal(sigInit) does before the queue launches await.
+				// Otherwise teardown can not tell a live worker from a never-started one and would close
+				// its channels while the goroutine is still running.
+				atomic.StoreInt32(&w.running, 1)
 				ws = append(ws, w)
 				go w.await(q)
 			}
