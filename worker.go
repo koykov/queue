@@ -153,7 +153,7 @@ func (w *worker) await(queue *Queue) {
 			// Forward itm to dequeuer.
 			now := w.config.Clock.Now()
 			err := w.proc.Do(itm.payload)
-			queue.er().Report(err == nil)
+			queue.er().Report(err != nil)
 			w.mw().QueueExec(w.config.Clock.Now().Sub(now))
 			if err != nil {
 				// Processing failed.

@@ -110,7 +110,7 @@ func (q *Queue) init() {
 	}
 
 	if c.Clock == nil {
-		c.Clock = nativeClock{}
+		c.Clock = NativeClock{}
 	}
 
 	if c.ErrorRate == nil {
@@ -751,7 +751,7 @@ func (q *Queue) clk() Clock {
 	return q.config.Clock
 }
 
-func (q *Queue) er() Rater {
+func (q *Queue) er() ErrorRater {
 	return q.config.ErrorRate
 }
 
