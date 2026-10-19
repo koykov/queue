@@ -113,6 +113,10 @@ func (q *Queue) init() {
 		c.Clock = nativeClock{}
 	}
 
+	if c.ErrorRate == nil {
+		c.ErrorRate = dummyRater{}
+	}
+
 	if c.MetricsWriter == nil {
 		// Use dummy MW.
 		c.MetricsWriter = DummyMetrics{}
@@ -338,6 +342,10 @@ func (q *Queue) Capacity() int {
 // Rate returns size to capacity ratio.
 func (q *Queue) Rate() float32 {
 	return float32(q.engine.size()) / float32(q.engine.cap())
+}
+
+func (q *Queue) ErrorRate() float32 {
+	return q.c().ErrorRate.Rate()
 }
 
 // Close gracefully stops the queue.
@@ -741,6 +749,10 @@ func (q *Queue) c() *Config {
 
 func (q *Queue) clk() Clock {
 	return q.config.Clock
+}
+
+func (q *Queue) er() Rater {
+	return q.config.ErrorRate
 }
 
 func (q *Queue) mw() MetricsWriter {

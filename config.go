@@ -134,6 +134,11 @@ type Config struct {
 	// If this param omit nativeClock will use instead (see clock.go).
 	Clock Clock
 
+	// ErrorRate returns rate of errors of items processing.
+	// May be useful for realtime monitoring.
+	// If this param omit dummyRater (nop) will use by default.
+	ErrorRate Rater
+
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 
