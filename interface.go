@@ -15,6 +15,8 @@ type Interface interface {
 	Capacity() int
 	// Rate returns size to capacity ratio.
 	Rate() float32
+	// ErrorRate returns rate of the processing error rate in range [0,1].
+	ErrorRate() float32
 	// Close gracefully stops the queue.
 	Close() error
 	// ForceClose stops the queue and clear it.

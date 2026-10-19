@@ -7,8 +7,8 @@ type Clock interface {
 	Now() time.Time
 }
 
-type nativeClock struct{}
+type NativeClock struct{}
 
-func (c nativeClock) Now() time.Time {
+func (c NativeClock) Now() time.Time {
 	return time.Now()
 }
