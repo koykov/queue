@@ -11,6 +11,7 @@ A `queue` is a wrapper over Go channels that has the following features:
 * deadline-aware
 * prioretizable
 * covered with metrics
+* with error rate tracking
 * logged
 * configurable close strategy
 
@@ -211,6 +212,30 @@ There are two implementation of the interface:
 * [`victoria.Writer`](metrics/victoria)
 
 You may write your own implementation of `MetricsWriter` for any required TSDB.
+
+## Error rate
+
+[`Rate()`](interface.go) shows how full the queue is, while [`ErrorRate()`](interface.go) shows how healthy it is -
+the rate of failed item processing attempts in range [0,1]. The queue reports every processing attempt to the
+`ErrorRate` component and exposes the aggregated value through `ErrorRate()`. It may be used for realtime monitoring
+and for backpressure: a consumer (e.g. the [dlqdump](https://github.com/koykov/dlqdump) restorer) can pause feeding
+the queue while its error rate is high.
+
+The `ErrorRate` component must implement [`ErrorRater`](rate.go). By default `dummyRater` is used, which does
+nothing and always reports zero rate. The [`error_rate`](error_rate) package provides an EWMA implementation:
+
+```go
+config := Config{
+	...
+	ErrorRate: error_rate.NewEWMA(time.Minute, nil), // nil clock means NativeClock
+	...
+}
+```
+
+`NewEWMA` builds a time-weighted exponentially weighted moving average. The rate lazily decays toward zero while no
+processing occurs, so an idle queue reports a healthy (zero) rate, and no background sweeping is required. The time
+constant (`tau`, one minute by default) controls how fast the average follows the current error fraction and how
+fast it decays.
 
 ## Builtin workers
 
